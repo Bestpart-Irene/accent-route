@@ -40,9 +40,10 @@ whether the model learned accent or learned read-speech accent. EdAcc covers onl
 the label set, so its figure is a supported-class macro-F1 reported next to an in-domain
 control on that same subset — never against a full-label-set number.
 
-**Wording.** Reported intervals cover test-set sampling, not training randomness, so
-nothing here is called statistically significant. `eval.tables.check_wording` enforces
-that against the report text and against these docs in CI.
+**Wording.** Reported intervals cover test-set sampling, not training randomness, so no
+result here is upgraded into a significance claim — the interval does not carry the
+evidence for one. `eval.tables.check_wording` enforces the rule against report text and
+against these docs in CI, and it has rejected two drafts of this README.
 
 ## Taxonomy
 
