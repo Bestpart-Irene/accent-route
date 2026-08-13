@@ -23,6 +23,7 @@ dependencies = [
 audio = [
     "silero-vad>=5.1",
     "faster-whisper>=1.0",
+    "datasets>=3.0",       # streaming a balanced GLOBE subset without a 122 GB download
 ]
 ml = [
     "torch>=2.4",
