@@ -6,6 +6,13 @@ runs/
 *.ckpt
 *.pt
 
+# 凭证:MDC API key、HF token 等一律不入库(仓库是公开的)
+.env
+.env.*
+*.key
+secrets/
+credentials.json
+
 # python
 .venv/
 __pycache__/
