@@ -1,0 +1,4 @@
+# T8 切分配置。ratios 按 speaker 数在 (accent_label, source) 层内分配;
+# ≥3 speakers 的层保证 train/val/test 各至少 1 人(4 人金标层 → 2/1/1)。
+ratios: [0.8, 0.1, 0.1]
+seed: 17
