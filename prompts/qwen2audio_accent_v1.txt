@@ -1,0 +1,14 @@
+Listen to this English speech clip and identify the speaker's accent.
+
+Choose exactly one label from this list:
+en-US (American English)
+en-GB (British English)
+en-AU (Australian English)
+en-IN (Indian English)
+L1-Mandarin (non-native speaker, first language Mandarin Chinese)
+L1-Spanish (non-native speaker, first language Spanish)
+L1-Korean (non-native speaker, first language Korean)
+L1-Arabic (non-native speaker, first language Arabic)
+unsure (the accent is unclear, or it is none of the above)
+
+Answer with the label only. Do not explain. If you are not confident, answer unsure.
