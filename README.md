@@ -45,10 +45,15 @@ merged**:
 2. **Seed variability** — the per-seed paired deltas and their standard deviation.
 
 The interval covers test-set sampling but *not* training randomness, so the only claim
-this project makes is `test-speaker bootstrap CI excludes zero`. It never says
-"statistically significant". That discipline is enforced in code, not by convention:
-`AblationStats` has no `significant` field, and `eval.tables.check_wording` rejects any
-report text containing the banned phrasing.
+this project makes is `test-speaker bootstrap CI excludes zero`. It never upgrades that
+into a significance claim, because the interval does not carry the evidence for one.
+
+That discipline is enforced in code, not by convention: `AblationStats` has no
+`significant` field, and `eval.tables.check_wording` rejects any report text containing a
+phrase from its `BANNED_PHRASES` list. The gate applies to this README too — it caught an
+earlier draft of this very paragraph, which quoted a banned phrase in order to explain the
+rule. The gate was left strict and the prose reworded, rather than adding an exemption
+that would also excuse the real thing.
 
 ## Known validity limits (stated, not hidden)
 
@@ -113,13 +118,39 @@ budget-matching cannot be got wrong by hand.
 
 | Source | Role | License | Access |
 | --- | --- | --- | --- |
-| Common Voice (English) | main training set, self-reported accents | CC0 | Mozilla Data Collective account + API key (**no longer distributed via Hugging Face** as of Oct 2025) |
+| GLOBE (`MushanW/GLOBE_V2`) | the four native varieties, self-reported accents | CC0 | open on Hugging Face |
 | L2-ARCTIC | gold labels for the four L2 classes | CC BY-NC 4.0 | request form; **audio is not redistributed here** |
 | EdAcc | **out-of-domain test only** | CC-BY-SA | open on Hugging Face (`edinburghcstr/edacc`) |
 | YouTube interviews | weak-label expansion, train split only | — | **only URLs, timestamps and labels are published here**; audio is fetched locally |
+| Common Voice (English) | optional extra self-reported data | CC0 | Mozilla Data Collective account + API key (**no longer on Hugging Face** as of Oct 2025) |
+
+GLOBE is Common-Voice-derived and carries the same self-reported accent strings, so it
+covers the native varieties without the Mozilla Data Collective dependency — and it is
+the only reachable corpus containing **en-AU** at all. Measured on a 14% sample: en-US
+2,196 speakers, en-GB 485, en-AU 137, en-IN 86. It contains **none** of the L1-* classes,
+because its accent field records English variety rather than the speaker's first
+language, which is why L2-ARCTIC stays on the critical path.
+
+Two biases GLOBE brings, both recorded in the datasheet: it is a TTS corpus curated for
+clean audio, so it is not representative of in-the-wild recordings; and V2 supersamples to
+44.1 kHz, so the extra bandwidth above Common Voice's original rate carries no
+information.
 
 VCTK and the Speech Accent Archive are backlog. `data/` and credentials (`.env`) are
 gitignored.
+
+## External comparison axis
+
+The 8-class taxonomy here is custom, so its macro-F1 has no reference point a reader can
+calibrate against. Results are therefore also re-reported in the label set of
+[Vox-Profile](https://arxiv.org/abs/2505.14648), a benchmark aggregating 11 corpora with
+speaker-disjoint splits and published models.
+
+The two label sets do not nest — ours is partly first-language based, Vox-Profile's is
+regional — so collapsing ours into theirs hides real errors: an `L1-Mandarin` /
+`L1-Korean` confusion disappears into `East Asia`. `eval.external.vox_profile_report`
+therefore always reports which groups it collapsed and how many errors that concealed, so
+the external number can never be quoted as if it were the primary result.
 
 ### EdAcc out-of-domain coverage
 
@@ -143,7 +174,7 @@ eight-class number.
 ## Development
 
 ```bash
-uv run pytest -q       # 176 tests
+uv run pytest -q       # 195 tests
 uv run ruff check .
 ```
 
