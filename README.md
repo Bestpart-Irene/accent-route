@@ -174,7 +174,7 @@ eight-class number.
 ## Development
 
 ```bash
-uv run pytest -q       # 195 tests
+uv run pytest -q       # 198 tests
 uv run ruff check .
 ```
 
