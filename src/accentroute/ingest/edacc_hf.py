@@ -10,6 +10,7 @@ English) are labeled by their l1, native speakers by the linguist-standardized a
 field.
 """
 
+import io
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -20,6 +21,28 @@ import soundfile as sf
 from accentroute.ingest.base import SourceIngestor
 
 TARGET_SR = 16000
+
+
+def _decode_audio(audio: dict) -> tuple[np.ndarray, int]:
+    """HF's Audio feature reaches us in one of two shapes.
+
+    Reading the parquet directly (what this ingestor does) yields the *encoded* form
+    {"bytes": <file bytes>, "path": str}; going through `datasets` yields the *decoded*
+    form {"array": np.ndarray, "sampling_rate": int}. Support both — the encoded form is
+    the one the real corpus uses.
+    """
+    if "array" in audio:
+        return np.asarray(audio["array"], dtype=np.float64), int(audio["sampling_rate"])
+    wav, sr = sf.read(io.BytesIO(audio["bytes"]), dtype="float64", always_2d=True)
+    return wav.mean(axis=1), int(sr)
+
+
+def _audio_duration(audio: dict) -> tuple[float, int]:
+    """(duration_s, sample_rate) without decoding the samples when we can avoid it."""
+    if "array" in audio:
+        return len(audio["array"]) / int(audio["sampling_rate"]), int(audio["sampling_rate"])
+    info = sf.info(io.BytesIO(audio["bytes"]))
+    return info.duration, int(info.samplerate)
 
 
 def _accent_raw(row: dict) -> str:
@@ -61,10 +84,7 @@ class EdAccHFIngestor(SourceIngestor):
             prefix = _clip_prefix(shard)
             df = pd.read_parquet(shard, columns=["speaker", "accent", "l1", "audio"])
             for i, row in enumerate(df.to_dict("records")):
-                audio = row["audio"]
-                n_samples = len(audio["array"])
-                sr = int(audio["sampling_rate"])
-                duration = n_samples / sr
+                duration, sr = _audio_duration(row["audio"])
                 yield {
                     "clip_id": f"{prefix}:{i:06d}",
                     "source": self.source,
@@ -96,9 +116,7 @@ def extract_audio(root: Path, out_dir: Path, skip_existing: bool = False) -> int
             dst = out_dir / f"{prefix}:{i:06d}.wav"
             if skip_existing and dst.exists():
                 continue
-            audio = row["audio"]
-            wav = np.asarray(audio["array"], dtype=np.float64)
-            sr = int(audio["sampling_rate"])
+            wav, sr = _decode_audio(row["audio"])
             if sr != TARGET_SR:
                 import soxr
 

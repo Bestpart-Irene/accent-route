@@ -5,6 +5,7 @@ release (`edinburghcstr/edacc`) ships one row per clip with the audio inline and
 speaker/text/accent/raw_accent/gender/l1. Two layouts, two ingestors.
 """
 
+import io
 from pathlib import Path
 
 import numpy as np
@@ -19,10 +20,25 @@ SR = 16000
 
 
 def _audio_struct(seconds: float, path: str) -> dict:
-    """Mimic the HF Audio feature after datasets decodes it to a dict."""
+    """The real on-disk form: HF stores the Audio feature as encoded file bytes.
+
+    Reading the parquet directly with pandas yields {"bytes", "path"} — NOT the decoded
+    {"array", "sampling_rate"} that `datasets` produces after decoding. The first version
+    of this fixture used the decoded form, so the tests passed while the real corpus
+    crashed with KeyError: 'array'.
+    """
     n = int(seconds * SR)
-    return {"array": 0.3 * np.sin(2 * np.pi * 220 * np.arange(n) / SR), "sampling_rate": SR,
-            "path": path}
+    wav = 0.3 * np.sin(2 * np.pi * 220 * np.arange(n) / SR)
+    buf = io.BytesIO()
+    sf.write(buf, wav, SR, format="WAV", subtype="PCM_16")
+    return {"bytes": buf.getvalue(), "path": path}
+
+
+def _decoded_audio_struct(seconds: float, path: str) -> dict:
+    """The decoded form, as produced by `datasets` — also supported."""
+    n = int(seconds * SR)
+    return {"array": 0.3 * np.sin(2 * np.pi * 220 * np.arange(n) / SR),
+            "sampling_rate": SR, "path": path}
 
 
 @pytest.fixture()
@@ -101,3 +117,33 @@ class TestExtractAudio:
         out = tmp_path / "wav"
         extract_audio(edacc_dir, out)
         assert extract_audio(edacc_dir, out, skip_existing=True) == 0
+
+    def test_audio_content_round_trips(self, edacc_dir, tmp_path):
+        """Extraction must preserve the signal, not just produce a file of the right shape."""
+        out = tmp_path / "wav"
+        extract_audio(edacc_dir, out)
+        data, sr = sf.read(out / "edacc:validation:00000:000000.wav")
+        expected = 0.3 * np.sin(2 * np.pi * 220 * np.arange(int(6.0 * SR)) / SR)
+        assert sr == SR
+        assert len(data) == len(expected)
+        assert np.max(np.abs(data - expected)) < 1e-3
+
+
+class TestDecodedAudioForm:
+    """`datasets` hands back decoded arrays; both forms must work."""
+
+    @pytest.fixture()
+    def decoded_dir(self, tmp_path: Path) -> Path:
+        root = tmp_path / "dec" / "data"
+        root.mkdir(parents=True)
+        pd.DataFrame([{
+            "speaker": "P010", "text": "t", "accent": "Southern British English",
+            "raw_accent": "b", "gender": "F", "l1": "English",
+            "audio": _decoded_audio_struct(6.0, "P010_0.wav"),
+        }]).to_parquet(root / "validation-00000-of-00001.parquet")
+        return tmp_path / "dec"
+
+    def test_ingest_and_extract(self, decoded_dir, tmp_path):
+        records = list(EdAccHFIngestor(root=decoded_dir).iter_records())
+        assert records[0]["duration_s"] == pytest.approx(6.0, abs=0.01)
+        assert extract_audio(decoded_dir, tmp_path / "w") == 1
