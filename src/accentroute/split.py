@@ -110,6 +110,45 @@ def assign_splits(
     return out
 
 
+def assign_splits_leaky(
+    df: pd.DataFrame,
+    ratios: tuple[float, float, float] = (0.8, 0.1, 0.1),
+    seed: int = 17,
+) -> pd.DataFrame:
+    """Clip-level random split. **Never** use this to produce a reported result.
+
+    It exists for one purpose: to measure how much a speaker-leaking split inflates a
+    score. Assigning clips at random puts the same speaker in train and test, so a model
+    can score well by recognizing voices rather than accents — the standard mistake in
+    accent-classification work, and the reason published accuracies in this area should be
+    read with suspicion.
+
+    Run against assign_splits on identical rows, the difference between the two scores is
+    the size of the illusion.
+    """
+    out = df.copy()
+    out["label_source"] = out["source"].map(LABEL_SOURCE_BY_SOURCE)
+    for col in ("consensus_score", "evidence_level"):
+        if col not in out.columns:
+            out[col] = None
+    out["split"] = "unassigned"
+
+    accepted = out["status"] == "accepted"
+    idx = np.array(out.index[accepted].to_numpy(), copy=True)
+    rng = np.random.default_rng(seed)
+    rng.shuffle(idx)
+
+    n = len(idx)
+    n_train = round(ratios[0] * n)
+    n_val = round(ratios[1] * n)
+    out.loc[idx[:n_train], "split"] = "train"
+    out.loc[idx[n_train : n_train + n_val], "split"] = "val"
+    out.loc[idx[n_train + n_val :], "split"] = "test"
+
+    validate_manifest(out, stage="split")
+    return out
+
+
 def write_speaker_report(df: pd.DataFrame, out: Path) -> pd.DataFrame:
     """Auditable speaker roster (CSV) + a per-class summary of test-set source counts
     (the return value).

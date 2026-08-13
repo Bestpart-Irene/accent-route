@@ -100,6 +100,10 @@ def pipeline() -> None:
     n_dup = int((deduped["reject_reason"] == "near_duplicate").sum())
     print(f"near-duplicates rejected: {n_dup}")
 
+    # Saved so the leakage demo can apply two different split rules to identical rows —
+    # a score gap between them then cannot be blamed on the data differing.
+    deduped.to_parquet(MAN / "globe_qc.parquet", index=False)
+
     split = assign_splits(deduped, ratios=(0.7, 0.15, 0.15), seed=17)
     split.to_parquet(MAN / "globe_split.parquet", index=False)
     summary = write_speaker_report(split, MAN / "globe_speakers.csv")
