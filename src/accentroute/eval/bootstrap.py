@@ -1,11 +1,13 @@
-"""按真实类别分层的 test-speaker paired bootstrap(决策 #2 的统计口径)。
+"""Paired test-speaker bootstrap, stratified by true class (the statistical convention
+behind decision #2).
 
-两个量分开呈现、绝不合并:
-  1. bootstrap CI —— 只重采样测试集 speaker cluster(类内等量有放回),
-     对 seed 平均后的 Δmacro-F1 出 percentile CI;
-  2. seed 变异 —— 全测试集上逐 seed 配对 Δ 的明细与 std。
-CI 未覆盖训练随机性,所以报告措辞只允许 "test-speaker bootstrap CI excludes
-zero",不得泛称 statistically significant —— 数据结构里没有 significant 字段。
+Two quantities are reported side by side and never merged:
+  1. the bootstrap CI — resamples only test-set speaker clusters (with replacement, equal
+     count within each class) and gives a percentile CI on the seed-averaged Δmacro-F1;
+  2. seed variation — the per-seed paired Δ over the full test set, plus its std.
+The CI does not cover training randomness, so the report may only say "test-speaker
+bootstrap CI excludes zero" and never "statistically significant" — which is why this data
+structure has no `significant` field to reach for.
 """
 
 from dataclasses import dataclass
@@ -17,19 +19,20 @@ from accentroute.eval.metrics import macro_f1
 
 @dataclass(frozen=True)
 class AblationStats:
-    delta_mean: float  # seed 平均后 Δmacro-F1 的 bootstrap 均值
+    delta_mean: float  # bootstrap mean of the seed-averaged Δmacro-F1
     ci_low: float
     ci_high: float
     n_boot: int
-    ci_excludes_zero: bool  # 报告措辞只允许引用这个字段
-    seed_deltas: tuple[float, ...]  # 全测试集上逐 seed 配对 Δ
+    ci_excludes_zero: bool  # the only field report wording is allowed to cite
+    seed_deltas: tuple[float, ...]  # per-seed paired Δ over the full test set
     seed_delta_std: float
 
 
 def stratified_cluster_resample(
     rng: np.random.Generator, strata: dict[str, np.ndarray]
 ) -> np.ndarray:
-    """每类内部有放回重采样该类的 cluster(等量)→ 稀有类不会在采样中消失。"""
+    """Resample each class's clusters with replacement, keeping the count per class → rare
+    classes can never vanish from a bootstrap draw."""
     return np.concatenate([rng.choice(ks, size=len(ks)) for ks in strata.values()])
 
 
@@ -42,10 +45,10 @@ def stratified_cluster_bootstrap(
     n_boot: int = 10_000,
     seed: int = 0,
 ) -> AblationStats:
-    """preds_a/b: [n_seeds, n](如 C 臂 / B 臂各 3 seeds 的测试集预测)。
+    """preds_a/b: [n_seeds, n] (e.g. test-set predictions from 3 seeds each of arm C/arm B).
 
-    classes 通常就是 y_true(每个 speaker 一个类);labels 取其去重集,
-    supported-class 场景由调用方先行子集化。
+    classes is normally just y_true (one class per speaker); labels is its unique set. For
+    the supported-class case the caller subsets the arrays first.
     """
     y_true = np.asarray(y_true)
     speaker_keys = np.asarray(speaker_keys)

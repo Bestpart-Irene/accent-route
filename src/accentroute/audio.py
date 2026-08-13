@@ -1,4 +1,5 @@
-"""音频规范化:任意输入 → 16 kHz mono PCM16 WAV(全管线统一格式)。"""
+"""Audio normalization: any input → 16 kHz mono PCM16 WAV, the one format the whole
+pipeline works in."""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,7 +15,7 @@ TARGET_SR = 16000
 class AudioMeta:
     sample_rate_orig: int
     n_channels_orig: int
-    duration_s: float  # 输出片段时长
+    duration_s: float  # duration of the emitted segment
     n_samples_out: int
 
 
@@ -24,9 +25,11 @@ def to_wav16k_mono(
     start_s: float | None = None,
     end_s: float | None = None,
 ) -> AudioMeta:
-    """读 src(wav/flac/mp3/ogg),可选按秒切片,降混单声道,重采样 16k,写 PCM16。
+    """Read src (wav/flac/mp3/ogg), optionally slice it by seconds, downmix to mono,
+    resample to 16k, and write PCM16.
 
-    切片在原始采样率上按样本索引进行,保证偏移精确到 1/sr 秒。
+    Slicing happens by sample index at the original sample rate, so offsets are exact to
+    1/sr of a second.
     """
     data, sr = sf.read(src, always_2d=True, dtype="float64")
     n_channels = data.shape[1]

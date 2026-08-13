@@ -1,7 +1,8 @@
-"""训练用数据集:manifest → {input_features, n_valid, label}。
+"""Training dataset: manifest → {input_features, n_valid, label}.
 
-有效帧数走 WhisperFeatureExtractor 的 attention mask(决策 #8),
->30s 取中心窗;增强行(clip_id 带 #aug-sp)按变速因子实时生成音频。
+The valid frame count comes from WhisperFeatureExtractor's attention mask (decision #8).
+Clips longer than 30s are cropped to their center window, and augmented rows (clip_id
+carrying #aug-sp) have their audio generated on the fly from the speed factor.
 """
 
 from pathlib import Path
@@ -46,7 +47,7 @@ class ManifestAudioDataset:
         if aug.startswith("aug-sp"):
             wav = speed_perturb(wav, sr, float(aug.removeprefix("aug-sp")))
         max_len = MAX_SECONDS * TARGET_SR
-        if len(wav) > max_len:  # >30s 取中心窗
+        if len(wav) > max_len:  # >30s → crop to the center window
             start = (len(wav) - max_len) // 2
             wav = wav[start : start + max_len]
         return wav

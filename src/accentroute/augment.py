@@ -1,7 +1,9 @@
-"""训练集增强:变速 + MUSAN 加噪 + RIR 混响,只作用于 train 行。
+"""Training-set augmentation: speed perturbation + MUSAN noise + RIR reverb, applied to
+train rows only.
 
-增强行沿用原行的 speaker_key 与标签 —— 绝不制造新说话人,否则
-speaker-disjoint 切分会被自己的增强破坏。clip_id 加 "#aug" 后缀标记来源。
+An augmented row reuses the source row's speaker_key and label — it never invents a new
+speaker, which is what keeps augmentation from breaking the speaker-disjoint split. The
+clip_id gets an "#aug" suffix so the provenance stays visible.
 """
 
 from dataclasses import dataclass
@@ -19,17 +21,20 @@ class AugmentConfig:
 
 
 def speed_perturb(wav: np.ndarray, sr: int, factor: float) -> np.ndarray:
-    """重采样式变速:同时改变时长与共振峰(标准 speed perturbation)。"""
+    """Resampling-based speed change: shifts duration and formants together (the standard
+    speed perturbation)."""
     if factor == 1.0:
         return wav
     return soxr.resample(wav, int(sr * factor), sr)
 
 
 def augment_train(df: pd.DataFrame, cfg: AugmentConfig) -> pd.DataFrame:
-    """为每个 train 行按 speed 因子生成增强行(manifest 层;音频在训练侧按需生成)。
+    """Add one augmented row per train row per speed factor, at the manifest level; the
+    audio itself is generated on demand during training.
 
-    MUSAN/RIR 是训练时的随机在线增强,不进 manifest —— 只有变速改变时长,
-    需要在 manifest 里体现。
+    MUSAN and RIR are random online augmentations applied at training time and never enter
+    the manifest — only speed perturbation changes duration, which the manifest has to
+    reflect.
     """
     train = df[df["split"] == "train"]
     aug_rows = []

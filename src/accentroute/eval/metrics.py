@@ -1,7 +1,9 @@
-"""指标:独立实现(不依赖 sklearn),单测对照 sklearn 参考值。
+"""Metrics: a standalone implementation (no sklearn dependency), cross-checked against
+sklearn reference values in the unit tests.
 
-labels 默认锁定 8 类;supported-class macro-F1(EdAcc 排除类后)显式传子集,
-两者不可横比 —— 表格生成端(T15)负责命名区分。
+labels defaults to the full 8 classes; supported-class macro-F1 (after EdAcc's excluded
+classes are dropped) passes its subset explicitly. The two are not comparable — the table
+generation layer (T15) is responsible for naming them distinctly.
 """
 
 from collections.abc import Sequence
@@ -14,7 +16,7 @@ from accentroute.schema import ACCENTS
 def confusion(
     y_true: np.ndarray, y_pred: np.ndarray, labels: Sequence[str] = tuple(ACCENTS)
 ) -> np.ndarray:
-    """行=真实类,列=预测类。"""
+    """Rows = true class, columns = predicted class."""
     index = {lab: i for i, lab in enumerate(labels)}
     m = np.zeros((len(labels), len(labels)), dtype=np.int64)
     for t, p in zip(y_true, y_pred):
@@ -26,10 +28,12 @@ def confusion(
 def macro_f1(
     y_true: np.ndarray, y_pred: np.ndarray, labels: Sequence[str] = tuple(ACCENTS)
 ) -> float:
-    """逐类 F1 的未加权均值;无支持且无预测的类记 0(与 sklearn zero_division=0 一致)。
+    """Unweighted mean of per-class F1; a class with no support and no predictions scores 0
+    (matching sklearn's zero_division=0).
 
-    不走 confusion 矩阵:labels 取子集时,预测值落在子集外的样本必须计入
-    真实类的 FN(否则 supported-class macro-F1 虚高),逐类直接数 TP/FP/FN。
+    Deliberately not routed through the confusion matrix: when labels is a subset, samples
+    predicted outside that subset must still count as FN for their true class (otherwise
+    supported-class macro-F1 comes out inflated), so TP/FP/FN are counted per class here.
     """
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)

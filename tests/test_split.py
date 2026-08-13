@@ -1,4 +1,4 @@
-"""T8: speaker-disjoint 切分。核心不变量:同一 speaker_key 绝不跨 split。"""
+"""T8: speaker-disjoint splits. Core invariant: one speaker_key never spans two splits."""
 
 from pathlib import Path
 
@@ -37,24 +37,24 @@ def _row(clip_id, source, speaker, label, status="accepted", duration=6.0):
 
 def make_manifest() -> pd.DataFrame:
     rows = []
-    # CV:2 类 × 10 speakers × 4 clips
+    # CV: 2 classes × 10 speakers × 4 clips
     for label in ["en-US", "L1-Korean"]:
         for s in range(10):
             spk = f"{label}-cv{s}"
             for c in range(4):
                 rows.append(_row(f"cv-{label}-{s}-{c}", "common_voice", spk, label))
-    # L2-ARCTIC:L1-Korean 4 speakers × 5 clips(模拟真实约束)
+    # L2-ARCTIC: L1-Korean, 4 speakers × 5 clips (mirrors the real constraint)
     for s, spk in enumerate(["HJK", "HKK", "YDCK", "YKWK"]):
         for c in range(5):
             rows.append(_row(f"l2-{s}-{c}", "l2_arctic", spk, "L1-Korean"))
-    # EdAcc:只进 ood_test
+    # EdAcc: goes to ood_test only
     for s in range(3):
         rows.append(_row(f"ed-{s}", "edacc", f"P{s}", "en-US"))
-    # YouTube 弱标:只进 train
+    # YouTube weak labels: train only
     rows.append(
         {**_row("yt-0", "youtube", "chan1:v1", "en-AU"), "evidence_level": "E1"}
     )
-    # 一条被拒的行:split 应为 unassigned
+    # one rejected row: its split must come out "unassigned"
     rows.append(_row("cv-rej", "common_voice", "rejspk", "en-US", status="rejected"))
     return pd.DataFrame(rows)
 
@@ -90,7 +90,7 @@ class TestInvariants:
 
 class TestStratification:
     def test_each_class_source_stratum_covers_eval(self, split_df):
-        """≥3 speakers 的 (class, source) 层,train/val/test 都非空。"""
+        """Every (class, source) stratum with ≥3 speakers is non-empty in train/val/test."""
         pool = split_df[
             split_df["source"].isin(["common_voice", "l2_arctic"])
             & (split_df["status"] == "accepted")
@@ -100,7 +100,7 @@ class TestStratification:
                 assert {"train", "val", "test"} <= set(grp["split"])
 
     def test_l2_arctic_holdout_in_test(self, split_df):
-        """4 说话人的金标层:2 train / 1 val / 1 test。"""
+        """A 4-speaker gold stratum splits 2 train / 1 val / 1 test."""
         l2 = split_df[split_df["source"] == "l2_arctic"]
         spk_split = l2.groupby("speaker_key")["split"].first()
         assert sorted(spk_split.values) == ["test", "train", "train", "val"]
@@ -126,9 +126,9 @@ class TestSpeakerReport:
         summary = write_speaker_report(split_df, tmp_path / "speakers.csv")
         assert (tmp_path / "speakers.csv").exists()
         by_label = summary.set_index("accent_label")
-        # en-US 测试集只有 CV 一个源(EdAcc 在 ood_test 不算)→ flag
+        # the en-US test set has a single source, CV (EdAcc sits in ood_test) → flag
         assert bool(by_label.loc["en-US", "single_source_test"]) is True
-        # L1-Korean 测试集有 CV + L2-ARCTIC 两个源
+        # the L1-Korean test set has two sources, CV + L2-ARCTIC
         assert by_label.loc["L1-Korean", "n_test_sources"] == 2
         assert bool(by_label.loc["L1-Korean", "single_source_test"]) is False
 
@@ -136,5 +136,5 @@ class TestSpeakerReport:
         write_speaker_report(split_df, tmp_path / "speakers.csv")
         table = pd.read_csv(tmp_path / "speakers.csv")
         assert {"speaker_key", "source", "accent_label", "split", "n_clips"} <= set(table.columns)
-        # 每个 speaker 一行
+        # one row per speaker
         assert table["speaker_key"].is_unique

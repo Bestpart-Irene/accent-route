@@ -1,12 +1,14 @@
 #!/usr/bin/env python
-"""实验矩阵编排:3 臂 × 3 seeds + LOSO 单 seed。
+"""Experiment-matrix orchestration: 3 arms × 3 seeds, plus a single-seed LOSO run.
 
-预算协议的关键在提交顺序:C 臂必须先跑完,拿到实际步数 S_C,B 臂才能对齐提交。
-脚本用 Slurm 依赖(--dependency=afterok)把这个顺序固化,不靠人记。
+The budget protocol lives in the submission order: the C arm has to finish first so that
+its actual step count S_C is known before B can be submitted step-matched to it. The
+script freezes that order with a Slurm dependency (--dependency=afterok) rather than
+relying on anyone remembering it.
 
-用法:
-    python scripts/run_experiments.py submit          # 提交全矩阵
-    python scripts/run_experiments.py tables RUNS_DIR # 汇总结果表
+Usage:
+    python scripts/run_experiments.py submit          # submit the whole matrix
+    python scripts/run_experiments.py tables RUNS_DIR # roll up the results tables
 """
 
 import json
@@ -27,7 +29,7 @@ def _sbatch(args: list[str], depends_on: str | None = None) -> str:
 
 
 def submit() -> None:
-    """C 先跑(定出 S_C)→ B 依赖 C 完成后按 S_C 提交;A 与 LOSO 无依赖。"""
+    """C runs first to fix S_C; B follows once C is done. A and LOSO have no dependencies."""
     jobs: dict[str, str] = {}
     for seed in SEEDS:
         jobs[f"c-{seed}"] = _sbatch(["c_gold_weak", str(seed)])
@@ -45,7 +47,7 @@ def submit() -> None:
 
 
 def submit_b() -> None:
-    """C 跑完后提交 B:步数逐 seed 从 C 的 metrics.json 读取。"""
+    """Submit B once C has finished; the step count is read per seed from C's metrics.json."""
     jobs = {}
     for seed in SEEDS:
         metrics = RUNS / f"c_gold_weak-seed{seed}" / "metrics.json"
@@ -58,7 +60,7 @@ def submit_b() -> None:
 
 
 def tables(runs_dir: Path) -> None:
-    """汇总前先过公平性硬门,再生成消融表。"""
+    """Clear the fairness gate first, then build the ablation tables."""
     from accentroute.eval.tables import assert_budget_alignment
 
     assert_budget_alignment(runs_dir)

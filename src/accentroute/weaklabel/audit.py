@@ -1,9 +1,12 @@
-"""弱标签三池盲审(决策 #4)。
+"""Three-pool blind audit of weak labels (decision #4).
 
-只审 accepted 池看不到筛选器的选择偏差,所以 reject/review 池按 reject_reason
-分层同抽 —— false-reject 率进 datasheet。
-每类 n=25 的 precision 噪声大,一律带 Wilson 区间报告,禁止裸报点估计。
-kill 规则:accepted 池某类 precision < kill_precision → 该类弱标签整体剔除。
+Auditing only the accepted pool would hide the filter's own selection bias, so the
+reject/review pools are sampled alongside it, stratified by reject_reason — the
+false-reject rate goes into the datasheet.
+Precision on n=25 per class is noisy, so it is always reported with a Wilson interval;
+bare point estimates are not allowed.
+Kill rule: if a class's precision in the accepted pool falls below kill_precision, that
+class's weak labels are dropped wholesale.
 """
 
 import math
@@ -14,7 +17,8 @@ import pandas as pd
 
 
 def wilson_interval(n_success: int, n_total: int, z: float = 1.96) -> tuple[float, float]:
-    """Wilson score 区间:小样本比例的区间,n=25 时明显宽于正态近似。"""
+    """Wilson score interval for a small-sample proportion; at n=25 it is noticeably wider
+    than the normal approximation."""
     if n_total == 0:
         return (0.0, 1.0)
     p = n_success / n_total
@@ -30,9 +34,10 @@ def draw_audit_sample(
     reject_pool_n: int = 50,
     seed: int = 0,
 ) -> pd.DataFrame:
-    """accepted 池按类分层 + reject/review 池按 reject_reason 分层。
+    """Stratify the accepted pool by class and the reject/review pools by reject_reason.
 
-    返回内部表(含标签列);盲听 CSV 由调用方 drop 标签列后导出。
+    Returns the internal table, labels included; the caller drops the label columns before
+    exporting the blind-listening CSV.
     """
     rng = np.random.default_rng(seed)
 
@@ -70,10 +75,11 @@ class AuditReport:
 
 
 def audit_report(annotated: pd.DataFrame, kill_precision: float = 0.80) -> AuditReport:
-    """annotated 需含 human_label 列(盲听结果)。
+    """annotated must carry a human_label column (the blind-listening result).
 
-    accepted 池:precision = human_label == accent_label 的比例。
-    reject 池:false-reject = human_label 与 prior_label 一致(即本该收录)的比例。
+    Accepted pool: precision = the fraction where human_label == accent_label.
+    Reject pool: false-reject = the fraction where human_label agrees with prior_label,
+    i.e. clips that should have been kept.
     """
     acc = annotated[annotated["pool"] == "accepted"]
     precision, ci, ns = {}, {}, {}

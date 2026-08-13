@@ -10,10 +10,11 @@
 #SBATCH --error=logs/train-%j.err
 set -euo pipefail
 
-# 单次训练(冻结 whisper-small encoder + LoRA,显存占用小)。
-# 用法:sbatch scripts/train.sbatch <arm> <seed> [steps_c]
+# A single training run (frozen whisper-small encoder + LoRA, so VRAM stays small).
+# Usage: sbatch scripts/train.sbatch <arm> <seed> [steps_c]
 #   arm ∈ {a_gold, b_gold_oversampled, c_gold_weak, loso_l2}
-#   b_gold_oversampled 必须传 steps_c(C 臂实际步数),否则预算协议无法对齐。
+#   b_gold_oversampled must be passed steps_c (the C arm's actual step count), otherwise
+#   the budget protocol cannot be aligned.
 ARM="${1:?usage: train.sbatch <arm> <seed> [steps_c]}"
 SEED="${2:?usage: train.sbatch <arm> <seed> [steps_c]}"
 STEPS_C="${3:-}"

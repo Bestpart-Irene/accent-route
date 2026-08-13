@@ -1,10 +1,11 @@
-"""阶段化 manifest schema：raw → qc → split，逐阶段收紧。
+"""Staged manifest schemas: raw → qc → split, tightening one stage at a time.
 
-管线每段都是「读 Parquet → 变换 → validate_manifest(df, stage) → 写 Parquet」。
-三条项目级不变量在 split 阶段被机器强制，任何下游代码都不需要再自证清白：
-  1. rejected 行必有 reject_reason
-  2. weak 标签绝不进 val/test/ood_test
-  3. youtube 的 accepted 行必须有 E1/E2 证据等级
+Every pipeline stage is the same shape: read Parquet → transform →
+validate_manifest(df, stage) → write Parquet. Three project-level invariants are
+machine-enforced at the split stage, so no downstream code has to re-prove them:
+  1. rejected rows always carry a reject_reason
+  2. weak labels never reach val/test/ood_test
+  3. accepted youtube rows must carry an E1/E2 evidence level
 """
 
 import pandas as pd
@@ -15,12 +16,12 @@ ACCENTS = [
     "en-US", "en-GB", "en-AU", "en-IN",
     "L1-Mandarin", "L1-Spanish", "L1-Korean", "L1-Arabic",
 ]
-SOURCES = ["common_voice", "l2_arctic", "edacc", "youtube"]  # vctk/saa 进 backlog 时再扩
+SOURCES = ["common_voice", "l2_arctic", "edacc", "youtube"]  # extend when vctk/saa land
 SPLITS = ["train", "val", "test", "ood_test", "unassigned"]
 
 
 class RawManifestSchema(pa.DataFrameModel):
-    """ingest 阶段产出：只描述音频与来源，不含标签决策。"""
+    """Produced by the ingest stage: audio and provenance only, no labeling decisions."""
 
     clip_id: Series[str] = pa.Field(unique=True)
     source: Series[str] = pa.Field(isin=SOURCES)
@@ -36,11 +37,11 @@ class RawManifestSchema(pa.DataFrameModel):
 
 
 class QCManifestSchema(RawManifestSchema):
-    """taxonomy + filter 之后：标签映射与质量指标。"""
+    """After taxonomy + filter: mapped labels plus quality metrics."""
 
     accent_label: Series[str] = pa.Field(isin=ACCENTS, nullable=True)
     taxonomy_version: Series[str]
-    # 单通道估算的代理量，非真实 SNR
+    # Single-channel estimate: a proxy, not true SNR
     snr_proxy_db: Series[float] = pa.Field(nullable=True, coerce=True)
     vad_speech_ratio: Series[float] = pa.Field(ge=0, le=1, nullable=True, coerce=True)
     lang_prob: Series[float] = pa.Field(ge=0, le=1, nullable=True, coerce=True)
@@ -54,12 +55,13 @@ class QCManifestSchema(RawManifestSchema):
 
 
 class SplitManifestSchema(QCManifestSchema):
-    """dedup + split + weak-label 之后：训练/评测就绪。"""
+    """After dedup + split + weak labeling: ready for training and evaluation."""
 
-    speaker_key: Series[str]  # 缺省 f"{source}:{speaker_id_raw}"，去重合并后更新
+    speaker_key: Series[str]  # defaults to f"{source}:{speaker_id_raw}"; dedup may remap it
     split: Series[str] = pa.Field(isin=SPLITS)
     label_source: Series[str] = pa.Field(isin=["gold", "self_report", "weak"])
-    # 多数票比例 × 证据权重的工程排序分，非校准置信度
+    # Majority-vote share × evidence weight: an engineering ranking score,
+    # not a calibrated confidence
     consensus_score: Series[float] = pa.Field(ge=0, le=1, nullable=True, coerce=True)
     evidence_level: Series[str] = pa.Field(isin=["E1", "E2", "E3"], nullable=True)
 
@@ -86,5 +88,5 @@ STAGE_SCHEMAS: dict[str, type[pa.DataFrameModel]] = {
 
 
 def validate_manifest(df: pd.DataFrame, stage: str) -> pd.DataFrame:
-    """按阶段校验 manifest；lazy=True 让所有违规一次性报出。"""
+    """Validate a manifest for one stage; lazy=True surfaces every violation at once."""
     return STAGE_SCHEMAS[stage].validate(df, lazy=True)

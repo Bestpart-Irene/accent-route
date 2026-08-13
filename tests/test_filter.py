@@ -1,4 +1,6 @@
-"""T6: 质量过滤 → qc manifest。模型(VAD/whisper/LID)全部注入,CI 零下载。"""
+"""T6: quality filtering → the qc manifest. Every model (VAD/Whisper/LID) is injected,
+so CI downloads nothing.
+"""
 
 import math
 
@@ -18,11 +20,11 @@ from accentroute.taxonomy import Taxonomy
 SR = 16000
 
 
-# ── 注入用的假模型 ─────────────────────────────────────────────
+# ── injected fake models ──────────────────────────────────────
 
 
 def fake_vad(wav: np.ndarray, sr: int) -> list[dict]:
-    """能量 VAD 替身:|x|>0.01 的连续段。"""
+    """Energy-based VAD stand-in: contiguous runs where |x| > 0.01."""
     mask = np.abs(wav) > 0.01
     ts, start = [], None
     for i, m in enumerate(mask):
@@ -48,7 +50,7 @@ def make_taxonomy() -> Taxonomy:
     return Taxonomy(version="v1", mapping={"united states english": "en-US"})
 
 
-# ── 纯函数 ────────────────────────────────────────────────────
+# ── pure functions ────────────────────────────────────────────
 
 
 class TestVadRatio:
@@ -100,7 +102,7 @@ def _raw_row(clip_id: str, accent_raw="united states english", duration=6.0) -> 
 def _speech_wav(seconds: float = 6.0) -> np.ndarray:
     t = np.arange(int(seconds * SR)) / SR
     wav = np.zeros_like(t)
-    # 90% 语音 + 10% 尾部低噪声,SNR 代理量很高
+    # 90% speech + a 10% low-noise tail, so the SNR proxy comes out high
     n_speech = int(0.9 * len(t))
     wav[:n_speech] = 0.5 * np.sin(2 * np.pi * 220 * t[:n_speech])
     wav[n_speech:] = 0.001 * np.sin(2 * np.pi * 60 * t[n_speech:])
@@ -139,7 +141,7 @@ class TestApplyFilters:
 
     def test_unmapped_accent_rejected_without_loading_audio(self):
         df = pd.DataFrame([_raw_row("scot", accent_raw="scottish english")])
-        out = _run(df, {})  # audio_map 为空:不该被访问
+        out = _run(df, {})  # audio_map is empty: it must never be touched
         row = out.iloc[0]
         assert row["status"] == "rejected"
         assert row["reject_reason"] == "unmapped_accent"

@@ -1,13 +1,17 @@
-# accent_raw → 8 类白名单映射,v1
+# accent_raw → 8-class whitelist mapping, v1
 #
-# 键在加载时归一化(小写、压缩空白)后查表;表外值丢弃并计数(taxonomy.unmapped_counts)。
-# 这是保守起点:T4 各源 ingest 会输出未覆盖值的 top-N 统计,扩表走 v2(版本号必须递增,
-# manifest 的 taxonomy_version 字段记录用的是哪版)。
+# Keys are normalized at load time (lowercased, whitespace collapsed) before lookup; any
+# value outside the table is dropped and counted (taxonomy.unmapped_counts).
+# This is a deliberately conservative starting point: the T4 source ingestors report the
+# top-N uncovered values, and any expansion ships as v2 (the version must increment, and
+# the manifest's taxonomy_version field records which one was used).
 #
-# 已知的近似决策(datasheet 必须如实记录):
-# - CV 官方选项 "india and south asia (india, pakistan, sri lanka)" 映射到 en-IN,
-#   比 spec 的"印度英语"定义更宽,是有意的近似。
-# - "canadian english"、"new zealand english"、"scottish english" 等不在 8 类内,故意不映射。
+# Known approximations (the datasheet has to state these plainly):
+# - the official CV option "india and south asia (india, pakistan, sri lanka)" maps to
+#   en-IN, which is broader than the spec's definition of Indian English — an intentional
+#   approximation.
+# - "canadian english", "new zealand english", "scottish english" and the like fall outside
+#   the 8 classes and are deliberately left unmapped.
 
 version: v1
 
@@ -27,7 +31,7 @@ mapping:
   # ── en-AU ──────────────────────────────────────────────
   australian english: en-AU
 
-  # ── en-IN(印度英语,不区分母语/L2)────────────────────
+  # ── en-IN (Indian English; native and L2 not distinguished) ──
   india and south asia (india, pakistan, sri lanka): en-IN
   indian english: en-IN
 

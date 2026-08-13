@@ -1,10 +1,14 @@
-"""训练循环 + 三臂预算协议(决策 #1)。
+"""Training loop + the three-arm budget protocol (decision #1).
 
-公平性的机制保证:
-  - 共享字段只能来自 train_common.yaml,臂配置试图覆盖 → 加载器 ValueError;
-  - shared_config_hash 写进每个 run 的 metrics.json,T15 汇总时断言一致;
-  - B 臂步数 == C 臂步数由 resolve_total_steps("step_matched_to_c") 给出。
-固定步数预算(无 early stopping),checkpoint 按 val macro-F1 选择。
+Fairness is enforced mechanically, not by convention:
+  - shared fields may only come from train_common.yaml; an arm config that tries to
+    override one makes the loader raise ValueError;
+  - shared_config_hash is written into every run's metrics.json, and the T15 aggregation
+    asserts it is identical across runs;
+  - arm B's step count == arm C's step count, produced by
+    resolve_total_steps("step_matched_to_c").
+The budget is a fixed number of steps (no early stopping); the checkpoint is selected on
+val macro-F1.
 """
 
 import hashlib
@@ -18,7 +22,7 @@ import yaml
 
 from accentroute.eval.metrics import macro_f1
 
-# 消融公平性协议字段:锁定在 train_common.yaml,臂配置不得覆盖
+# Ablation fairness protocol fields: locked in train_common.yaml, never overridable per arm
 SHARED_FIELDS = frozenset(
     {
         "epochs_c", "batch_size", "lr", "lr_schedule", "warmup_ratio",
@@ -45,7 +49,7 @@ class TrainConfig:
     n_classes: int
     shared_config_hash: str
     dataset_variant: str = ""
-    total_steps: int | None = None  # B 臂由 C 臂步数注入;None → 由数据量解出
+    total_steps: int | None = None  # arm B injects arm C's count; None → derive from data size
 
 
 @dataclass(frozen=True)
@@ -102,7 +106,8 @@ def resolve_total_steps(
     epochs_c: int,
     steps_c: int | None = None,
 ) -> int:
-    """epoch_matched → 自身数据量;step_matched_to_c → 必须注入 C 臂步数。"""
+    """epoch_matched → derived from this arm's own data size; step_matched_to_c → arm C's
+    step count must be injected."""
     if budget == "epoch_matched":
         return epochs_c * math.ceil(n_train / batch_size)
     if budget == "step_matched_to_c":
@@ -120,10 +125,11 @@ def _cosine_warmup(step: int, total: int, warmup: int) -> float:
 
 
 def train(cfg: TrainConfig, *, model, train_ds, val_ds) -> TrainResult:
-    """数据集条目:{"input_features": [80,T] float, "n_valid": int, "label": int}。
+    """Dataset items: {"input_features": [80,T] float, "n_valid": int, "label": int}.
 
-    model 由调用方构建(生产走 build_model 下载底座;测试用微型随机 encoder),
-    训练循环本身与模型尺寸无关。
+    The caller builds the model (production goes through build_model and downloads the
+    backbone; tests pass a tiny randomly initialized encoder), so the training loop itself
+    is independent of model size.
     """
     import torch
     from torch.utils.data import DataLoader, WeightedRandomSampler

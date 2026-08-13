@@ -13,7 +13,7 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.11"
-      # 只装核心依赖 + dev：CI 绝不下载模型或音频栈
+      # Core + dev dependencies only: CI must never download a model or the audio stack
       - run: uv sync --group dev
       - run: uv run ruff check .
       - run: uv run pytest -v

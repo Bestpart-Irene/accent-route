@@ -1,7 +1,8 @@
-"""AccentRoute 管线 CLI。
+"""AccentRoute pipeline CLI.
 
-各阶段都是 manifest → manifest;真实模型依赖(VAD/whisper/LID/ECAPA/Qwen)
-在这里才绑定,库代码本身保持可注入、可测试。
+Every stage is manifest → manifest. The real model dependencies (VAD / whisper / LID /
+ECAPA / Qwen) are bound here and only here, which keeps the library code injectable and
+testable.
 """
 
 from pathlib import Path
@@ -11,9 +12,9 @@ import typer
 import yaml
 
 app = typer.Typer(name="accentroute", no_args_is_help=True)
-ingest_app = typer.Typer(no_args_is_help=True, help="各源 → raw manifest")
-weaklabel_app = typer.Typer(no_args_is_help=True, help="YouTube 弱标注(GPU)")
-train_app = typer.Typer(no_args_is_help=True, help="训练(GPU)")
+ingest_app = typer.Typer(no_args_is_help=True, help="each source → raw manifest")
+weaklabel_app = typer.Typer(no_args_is_help=True, help="YouTube weak supervision (GPU)")
+train_app = typer.Typer(no_args_is_help=True, help="training (GPU)")
 app.add_typer(ingest_app, name="ingest")
 app.add_typer(weaklabel_app, name="weaklabel")
 app.add_typer(train_app, name="train")
@@ -23,12 +24,12 @@ CONFIGS = Path("configs")
 
 @app.callback()
 def main() -> None:
-    """AccentRoute 数据管线。"""
+    """AccentRoute data pipeline."""
 
 
 @app.command()
 def version() -> None:
-    """打印版本。"""
+    """Print the installed version."""
     from importlib.metadata import version as pkg_version
 
     typer.echo(pkg_version("accentroute"))
@@ -91,7 +92,8 @@ def filter_cmd(
     config: Path = CONFIGS / "filter.yaml",
     taxonomy: Path = CONFIGS / "taxonomy_v1.yaml",
 ) -> None:
-    """质量过滤:raw → qc(绑定 Silero VAD 与 faster-whisper tiny 的转写 + 音频 LID)。"""
+    """Quality filtering: raw → qc (binds Silero VAD and faster-whisper tiny for
+    transcription + audio LID)."""
     import soundfile as sf
     from faster_whisper import WhisperModel
     from silero_vad import get_speech_timestamps, load_silero_vad
@@ -107,8 +109,9 @@ def filter_cmd(
 
         return get_speech_timestamps(torch.as_tensor(wav, dtype=torch.float32), vad_model)
 
-    # 语言判定用 whisper 自己的音频 LID(比对转写文本再判语言更可靠):
-    # 转写时记录该 clip 的语言,lid_fn 按转写文本取回。
+    # Language ID comes from whisper's own audio LID, which is more reliable than running a
+    # text LID over the transcript: record the clip's language while transcribing, then have
+    # lid_fn look it up by transcript.
     detected: dict[str, tuple[str, float]] = {}
 
     def transcribe_fn(wav):
@@ -141,7 +144,7 @@ def split_cmd(
     config: Path = CONFIGS / "split.yaml",
     speaker_report: Path = Path("data/manifests/speakers.csv"),
 ) -> None:
-    """speaker-disjoint 切分 + 可复核 speaker 清单。"""
+    """Speaker-disjoint split + an auditable speaker roster."""
     from accentroute.dedup import assign_speaker_keys
     from accentroute.split import assign_splits, write_speaker_report
 
@@ -159,7 +162,8 @@ def report_cmd(
     manifest: Path,
     out_dir: Path = Path("data/reports"),
 ) -> None:
-    """G1 门禁报告:source × accent 混杂矩阵 + confounded 标记 + EdAcc 覆盖。"""
+    """G1 gate report: source × accent confounding matrix + confounded flags + EdAcc
+    coverage."""
     from accentroute.reports.coverage_confounding import (
         edacc_class_coverage,
         flag_confounded,
@@ -185,7 +189,7 @@ def emit_cmd(
     out_dir: Path,
     augment: bool = True,
 ) -> None:
-    """产出训练集变体(a_gold / b_gold_oversampled / c_gold_weak / loso_l2)。"""
+    """Emit a training-set variant (a_gold / b_gold_oversampled / c_gold_weak / loso_l2)."""
     from accentroute.augment import AugmentConfig, augment_train
     from accentroute.emit import emit_dataset
 
@@ -204,7 +208,7 @@ def weaklabel_run(
     config: Path = CONFIGS / "weaklabel.yaml",
     wav_dir: Path = Path("data/work/youtube_wav"),
 ) -> None:
-    """Qwen2-Audio 批量投票(需 GPU;revision 未 pin 时直接失败)。"""
+    """Qwen2-Audio batch voting (needs a GPU; fails fast if the revision is not pinned)."""
     from accentroute.weaklabel.qwen import WeakLabelConfig, build_generate_fn, qwen_label_batch
 
     cfg = WeakLabelConfig.from_yaml(config)
@@ -219,7 +223,7 @@ def weaklabel_run(
 
 @weaklabel_app.command("consensus")
 def weaklabel_consensus(manifest: Path, out: Path) -> None:
-    """共识判定 + 接受率。"""
+    """Consensus decision + acceptance rate."""
     from accentroute.weaklabel.consensus import apply_consensus
 
     df = apply_consensus(pd.read_parquet(manifest))
@@ -236,7 +240,8 @@ def weaklabel_audit_sample(
     accepted_per_class: int = 25,
     reject_pool_n: int = 50,
 ) -> None:
-    """抽三池盲听样本(导出的 CSV 不含标签列)。"""
+    """Draw the three-pool blind-listening sample (the exported CSV carries no label
+    columns)."""
     from accentroute.weaklabel.audit import draw_audit_sample
 
     sample = draw_audit_sample(
@@ -258,7 +263,7 @@ def train_run(
     data_dir: Path = Path("data/datasets"),
     steps_c: int | None = None,
 ) -> None:
-    """单次训练(需 GPU)。b_gold_oversampled 必须传 --steps-c。"""
+    """Single training run (needs a GPU). b_gold_oversampled requires --steps-c."""
     from accentroute.datasets import ManifestAudioDataset
     from accentroute.model.whisper_lora import build_model
     from accentroute.train import load_train_config, resolve_total_steps, train

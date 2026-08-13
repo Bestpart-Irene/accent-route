@@ -1,7 +1,7 @@
-"""T11: 指标(对照 sklearn 参考)与三个基线。
+"""T11: metrics (checked against sklearn) and the three baselines.
 
-命名即措辞:ecapa_embedding_probe 是「frozen ECAPA embedding probe」,
-不是完整的 ECAPA-TDNN 口音基线,函数名固化这一点。
+Naming is wording: ecapa_embedding_probe is a frozen ECAPA embedding probe, not a full
+ECAPA-TDNN accent baseline, and the function name pins that down.
 """
 
 import numpy as np
@@ -34,7 +34,7 @@ class TestMetricsVsSklearn:
         assert macro_f1(y_true, y_pred) == pytest.approx(expected)
 
     def test_macro_f1_subset_labels(self):
-        """supported-class macro-F1:显式传 labels 子集。"""
+        """supported-class macro-F1: pass the label subset explicitly."""
         y_true, y_pred = self._data()
         subset = ACCENTS[:4]
         mask = np.isin(y_true, subset)

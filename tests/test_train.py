@@ -1,8 +1,9 @@
-"""T10: 训练循环 + 三臂预算协议。
+"""T10: training loop + the three-arm budget protocol.
 
-公平性由机制保证:共享字段(预算/采样/增强/ckpt 规则)只能来自
-train_common.yaml,臂配置试图覆盖 → 配置加载器直接拒绝;
-B 臂步数 == C 臂步数由 resolve_total_steps 保证并在测试断言。
+Fairness is enforced by mechanism: the shared fields (budget, sampling, augmentation and
+checkpoint rules) can only come from train_common.yaml, and an arm config that tries to
+override one is rejected outright by the loader. resolve_total_steps guarantees that the
+B arm step count equals the C arm step count, and the tests assert it.
 """
 
 import json
@@ -57,7 +58,7 @@ class TestConfigLoader:
             load_train_config(COMMON, ARMS / "a_gold.yaml", seed=999)
 
     def test_every_shared_field_is_locked(self, tmp_path):
-        """协议字段逐个验证不可覆盖 —— 公平性不能只靠一个抽样测试。"""
+        """Check every protocol field is locked — fairness cannot rest on one sampled case."""
         for field in sorted(SHARED_FIELDS):
             bad = tmp_path / f"arm_{field}.yaml"
             bad.write_text(f"arm: evil\nbudget: epoch_matched\n{field}: 1\n")
@@ -90,7 +91,7 @@ def _tiny_model(n_classes=4):
         encoder_ffn_dim=64,
         decoder_ffn_dim=64,
         num_mel_bins=80,
-        max_source_positions=150,  # mel T=300 → encoder 150 帧,测试提速
+        max_source_positions=150,  # mel T=300 → 150 encoder frames, keeps tests fast
     )
     return WhisperEncoderClassifier(
         WhisperModel(cfg).get_encoder(), d_model=32, n_classes=n_classes, lora_r=4
@@ -98,7 +99,7 @@ def _tiny_model(n_classes=4):
 
 
 class _SyntheticDs(torch.utils.data.Dataset):
-    """16 clips、4 类;每类的 mel 有独特强模式,可快速过拟合。"""
+    """16 clips, 4 classes; each class gets a strong distinctive mel pattern, easy to fit."""
 
     def __init__(self, n=16, n_classes=4):
         g = torch.Generator().manual_seed(0)
@@ -106,7 +107,7 @@ class _SyntheticDs(torch.utils.data.Dataset):
         for i in range(n):
             label = i % n_classes
             feats = 0.01 * torch.randn(80, 300, generator=g)
-            feats[label * 20 : (label + 1) * 20, :] += 3.0  # 类模式
+            feats[label * 20 : (label + 1) * 20, :] += 3.0  # class pattern
             self.items.append(
                 {"input_features": feats, "n_valid": 150, "label": label}
             )
@@ -126,8 +127,9 @@ def _train_cfg(tmp_path, total_steps=400, seed=17) -> TrainConfig:
         out_dir=tmp_path / "run",
         epochs_c=15,
         batch_size=8,
-        # 测试用的随机初始化 encoder 特征近乎退化(pooled 两两余弦 >0.99),
-        # 需要比生产(1e-4)大得多的 lr 才能在合成任务上过拟合。
+        # the randomly initialized test encoder yields near-degenerate features (pairwise
+        # cosine of the pooled vectors > 0.99), so overfitting the synthetic task needs a
+        # much larger lr than production uses (1e-4).
         lr=2e-2,
         warmup_ratio=0.05,
         lora_r=4,

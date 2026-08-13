@@ -1,4 +1,5 @@
-"""accent_raw → 8 类映射:YAML 版本化白名单,表外丢弃并计数。"""
+"""accent_raw → 8-class mapping: a versioned YAML allowlist; anything not in the table is
+dropped and counted."""
 
 from collections import Counter
 from dataclasses import dataclass, field
@@ -20,7 +21,9 @@ class Taxonomy:
     unmapped_counts: Counter = field(default_factory=Counter)
 
     def map(self, raw: str | None) -> str | None:
-        """归一化后查白名单;表外返回 None 并计数。空输入不计数(缺失 ≠ 映射外)。"""
+        """Normalize, then look up the allowlist; anything not in the table returns None and
+        is counted. Empty input is not counted — missing is not the same as unmapped.
+        """
         if not raw:
             return None
         key = _normalize(raw)

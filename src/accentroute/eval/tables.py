@@ -1,10 +1,12 @@
-"""结果表生成 + 公平性/措辞的机器校验(决策 #1/#2/#3/#7)。
+"""Result-table generation + machine checks on fairness and wording (decisions #1/#2/#3/#7).
 
-三张核心表:
-  1. 三臂消融(头条 C−B,附 A−B 预算效应)—— CI 与 seed 变异分列;
-  2. 按源分层的每类 F1 —— source shortcut 肉眼可查;
-  3. supported-class 域外报告 —— 附域内模型在同一支持类子集的对照值。
-外加两道机器闸门:预算对齐断言、报告措辞校验。
+Three core tables:
+  1. the three-arm ablation (headline C−B, with A−B as the budget effect) — bootstrap CI
+     and seed variation reported in separate columns, never merged;
+  2. per-class F1 stratified by source — makes a source shortcut visible at a glance;
+  3. the supported-class out-of-domain report — paired with the in-domain model scored on
+     the same supported-class subset.
+Plus two machine gates: the budget-alignment assertion and the report wording check.
 """
 
 import json
@@ -28,7 +30,8 @@ BANNED_PHRASES = (
 
 
 def check_wording(text: str) -> None:
-    """报告文本闸门:CI 未覆盖训练随机性,不得泛称显著;不得称 SOTA。"""
+    """Report-text gate: the CI does not cover training randomness, so nothing may be called
+    significant, and nothing may be called SOTA."""
     for phrase in BANNED_PHRASES:
         if re.search(rf"\b{re.escape(phrase)}\b", text, flags=re.IGNORECASE):
             raise ValueError(
@@ -38,7 +41,7 @@ def check_wording(text: str) -> None:
 
 
 def format_delta_line(comparison: str, stats: AblationStats) -> str:
-    """固定措辞模板 —— 报告里的每个 Δ 都走这里生成。"""
+    """Fixed wording template — every Δ that appears in the report is generated here."""
     seeds = ", ".join(f"{d:.4f}" for d in stats.seed_deltas)
     return (
         f"{comparison}: delta macro-F1 = {stats.delta_mean:.4f}; "
@@ -50,7 +53,8 @@ def format_delta_line(comparison: str, stats: AblationStats) -> str:
 
 
 def assert_budget_alignment(runs_dir: Path) -> None:
-    """三臂公平性硬门:B/C 总步数必须相等,所有 run 的共享协议哈希必须一致。"""
+    """Hard fairness gate for the three arms: B and C must have identical total step counts,
+    and every run must share the same protocol hash."""
     runs = [json.loads(p.read_text()) for p in sorted(Path(runs_dir).glob("*/metrics.json"))]
     if not runs:
         raise AssertionError(f"no runs found under {runs_dir}")
@@ -81,7 +85,7 @@ def ablation_table(
     n_boot: int = 10_000,
     seed: int = 0,
 ) -> pd.DataFrame:
-    """preds_by_arm: {arm: [n_seeds, n]}。头条 C−B,附 A−B(预算效应)。"""
+    """preds_by_arm: {arm: [n_seeds, n]}. Headline is C−B, with A−B as the budget effect."""
     comparisons = [
         ("C-B", "c_gold_weak", "b_gold_oversampled", True),
         ("A-B", "a_gold", "b_gold_oversampled", False),
@@ -114,7 +118,7 @@ def ablation_table(
 def per_source_class_f1(
     y_true: np.ndarray, y_pred: np.ndarray, sources: np.ndarray
 ) -> pd.DataFrame:
-    """逐 (source, class) 的 F1:某类只在一个源上好用,这张表会直接暴露。"""
+    """F1 per (source, class): a class that only works on one source shows up immediately."""
     rows = []
     for source in sorted(np.unique(sources)):
         mask = sources == source
@@ -137,9 +141,11 @@ def supported_class_report(
     in_domain_y: np.ndarray,
     in_domain_pred: np.ndarray,
 ) -> dict:
-    """supported-class macro-F1 + 同一子集上的域内对照(唯一可比的对照)。
+    """supported-class macro-F1 + the in-domain reference on the same subset (the only
+    comparable reference).
 
-    刻意不返回完整 8 类数字 —— 排除类后的指标与全 8 类不可横比。
+    Deliberately does not return a full 8-class number — once classes are excluded, the
+    metric is not comparable with the full 8-class one.
     """
     supported = sorted(coverage[coverage["include"]]["accent_label"].tolist())
     excluded = sorted(coverage[~coverage["include"]]["accent_label"].tolist())

@@ -1,4 +1,6 @@
-"""T15: 结果表生成 —— 三臂消融、按源分层、supported-class 域外、措辞校验。"""
+"""T15: results tables — three-arm ablation, per-source stratification, supported-class
+out-of-domain reporting, and the wording check.
+"""
 
 import json
 from pathlib import Path
@@ -95,7 +97,7 @@ class TestPerSourceStratification:
         table = per_source_class_f1(y, pred, src)
         assert set(table["source"]) == {"common_voice", "l2_arctic"}
         assert set(table.columns) >= {"source", "accent_label", "f1", "n_clips"}
-        # 每个 (source, class) 组合都在表里 → 混杂问题肉眼可查
+        # every (source, class) cell is in the table, so confounding is visible at a glance
         assert len(table) == 6
 
 
@@ -111,9 +113,9 @@ class TestSupportedClassReport:
         assert rep["supported_classes"] == ["en-GB", "en-US"]
         assert rep["excluded_classes"] == ["L1-Korean"]
         assert "supported_class_macro_f1" in rep
-        # 域内对照必须在同一支持类子集上算,才可比
+        # the in-domain control must be computed on the same supported subset to compare
         assert "in_domain_supported_class_macro_f1" in rep
-        assert "full_8class_macro_f1" not in rep  # 不得混入不可比的数字
+        assert "full_8class_macro_f1" not in rep  # no incomparable numbers mixed in
 
 
 class TestWording:
@@ -140,7 +142,7 @@ class TestWording:
 
         stats = AblationStats(0.081, 0.021, 0.142, 10000, True, (0.07, 0.08, 0.09), 0.014)
         line = format_delta_line("C-B", stats)
-        check_wording(line)  # 生成的模板本身必须合规
+        check_wording(line)  # the generated template must itself be compliant
         assert "excludes zero: yes" in line
         assert "CI" in line
 

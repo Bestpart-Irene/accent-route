@@ -1,8 +1,9 @@
-"""Qwen2-Audio 弱标注推理(GPU 阶段,AICR rtx)。
+"""Qwen2-Audio weak-labeling inference (GPU stage, AICR rtx).
 
-防循环论证(决策 #2):模型 revision sha 与 prompt 文件 sha256 都在
-configs/weaklabel.yaml 里 pin 死,并随每次运行写进输出元数据 —— 弱标签来源
-与零样本基线用的是同一份冻结配置,报告里必须披露这一双重角色。
+Guarding against circular reasoning (decision #2): both the model revision sha and the
+prompt file's sha256 are pinned in configs/weaklabel.yaml and written into the output
+metadata on every run. The weak-label source and the zero-shot baseline run off the same
+frozen config, and the report must disclose that dual role.
 """
 
 import hashlib
@@ -16,7 +17,7 @@ import yaml
 
 from accentroute.eval.baselines import parse_qwen_label
 
-GenerateFn = Callable[[str, str], str]  # (wav_path, prompt) -> 模型输出文本
+GenerateFn = Callable[[str, str], str]  # (wav_path, prompt) -> raw model output text
 
 
 @dataclass(frozen=True)
@@ -55,7 +56,8 @@ class WeakLabelConfig:
 
 
 def build_generate_fn(cfg: WeakLabelConfig, device: str = "cuda") -> GenerateFn:
-    """真实 Qwen2-Audio 推理入口(需 GPU,~17GB BF16)。单测不走这里。"""
+    """Entry point for real Qwen2-Audio inference (needs a GPU, ~17GB in BF16). Unit tests
+    never reach this."""
     import librosa
     import torch
     from transformers import AutoProcessor, Qwen2AudioForConditionalGeneration
@@ -104,7 +106,8 @@ def qwen_label_batch(
     generate_fn: GenerateFn,
     wav_path_fn: Callable[[str], str],
 ) -> Path:
-    """逐 clip k 次自洽投票 → 写 Parquet(qwen_votes 列)+ 冻结元数据 sidecar。"""
+    """k self-consistency votes per clip → writes Parquet (qwen_votes column) plus a sidecar
+    of the frozen metadata."""
     df = pd.read_parquet(manifest)
     prompt = cfg.load_prompt()
     votes = [

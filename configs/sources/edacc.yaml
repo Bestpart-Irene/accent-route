@@ -1,6 +1,8 @@
-# EdAcc(Edinburgh International Accents of English Corpus)— CC-BY-SA,只作域外测试
-# 下载:HF edinburghcstr/edacc 或 DataShare 10283/8983
-# 真实数据落地后,如列名与缺省不符,只改 columns 重映射,不改代码(T4 设计约定)。
+# EdAcc (Edinburgh International Accents of English Corpus) — CC-BY-SA, used only as the
+# out-of-domain test set.
+# Download: HF edinburghcstr/edacc, or DataShare 10283/8983.
+# If the real column names turn out to differ from the defaults, remap them under `columns`
+# rather than touching the code (T4 design contract).
 source: edacc
 license: CC-BY-SA-4.0
 source_uri: https://datashare.ed.ac.uk/handle/10283/8983

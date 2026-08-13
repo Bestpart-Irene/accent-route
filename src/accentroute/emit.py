@@ -1,6 +1,8 @@
-"""三臂数据集产出:A/B 只含金标与自报,C 加入已接受弱标,LOSO 训练侧剔除 L2-ARCTIC。
+"""Emit the three-arm datasets: A/B carry gold and self-reported labels only, C adds the
+accepted weak labels, and LOSO drops L2-ARCTIC from the training side.
 
-三臂共享同一套 val/test/ood_test —— 评测集不随臂变化,否则消融不可比(单测强制)。
+All three arms share one set of val/test/ood_test splits — the evaluation data must not
+vary by arm, or the ablation is not comparable. The unit tests enforce this.
 """
 
 import json
@@ -36,7 +38,8 @@ def emit_dataset(df: pd.DataFrame, variant: str, out_dir: Path) -> DatasetStats:
     if variant in ("a_gold", "b_gold_oversampled", "loso_l2"):
         keep = keep[is_eval | ~is_weak]
     if variant == "loso_l2":
-        # L2-ARCTIC 只留在评测侧:训练只剩 CV 自报 L2 → 量化跨源泛化
+        # L2-ARCTIC stays on the evaluation side only: training is left with Common Voice
+        # self-reported L2 speech, which is what quantifies cross-source generalization
         keep = keep[keep["split"].isin(EVAL_SPLITS) | (keep["source"] != "l2_arctic")]
 
     keep = keep.reset_index(drop=True)

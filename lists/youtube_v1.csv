@@ -1,8 +1,12 @@
-# AccentRoute YouTube 弱标注清单 v1 —— repo 只发布 URL+时间戳+标签,绝不分发音频。
-# 目标规模:300–600 clips(小规模严策展;止损阶梯 ② 可缩到 ~300)。
-# evidence_level 由人工策展时判定:
-#   E1 = 说话人在片中自述出生地/成长地,或频道简介明确本人背景
-#   E2 = 频道地区 + 内容线索一致(如本地新闻主持人、地区方言节目)
-#   E3 = 仅凭模型判断 —— 一律拒收,不进训练
-# 只有 E1/E2 且与 Qwen 多数票一致的片段才会被接受(consensus 规则)。
+# AccentRoute YouTube weak-label list v1 — this repo publishes URLs, timestamps and labels
+# only; audio is never redistributed.
+# Target size: 300–600 clips (small and tightly curated; stop-loss ladder ② can shrink it
+# to ~300).
+# evidence_level is assigned by hand during curation:
+#   E1 = the speaker states their birthplace or where they grew up on camera, or the
+#        channel bio spells out their background
+#   E2 = channel region and content cues agree (local news anchor, regional dialect show)
+#   E3 = model judgement alone — always rejected, never enters training
+# Only E1/E2 clips that also agree with the Qwen majority vote are accepted (the consensus
+# rule).
 url,start_s,end_s,prior_label,evidence_level,evidence_note

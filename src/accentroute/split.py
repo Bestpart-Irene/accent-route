@@ -1,12 +1,16 @@
-"""speaker-disjoint 切分:同一 speaker_key 绝不跨 split —— 头条数字可信度的基石。
+"""Speaker-disjoint split: a speaker_key never straddles two splits — the foundation for
+trusting any headline number.
 
-规则:
-  - edacc → ood_test(只作域外);youtube(weak)→ train(决策 #4:弱标签绝不进评测)
-  - 其余源按 (accent_label, source) 分层,speaker 级分配:
-    每层 ≥3 speakers 保证 train/val/test 各非空(4 人金标层 → 2/1/1),
-    这就是「测试集每类尽量 ≥2 源」的机制
-  - 被拒行 split=unassigned
-label_source 由源决定:l2_arctic/edacc=gold,common_voice=self_report,youtube=weak。
+Rules:
+  - edacc → ood_test (out-of-domain only); youtube (weak) → train (decision #4: weak
+    labels never enter evaluation)
+  - every other source is stratified by (accent_label, source) and assigned at the speaker
+    level: a stratum with ≥3 speakers guarantees train/val/test are all non-empty (a
+    4-speaker gold stratum → 2/1/1), which is the mechanism behind "aim for ≥2 sources per
+    class in the test set"
+  - rejected rows get split=unassigned
+label_source follows the source: l2_arctic/edacc=gold, common_voice=self_report,
+youtube=weak.
 """
 
 from pathlib import Path
@@ -27,14 +31,15 @@ _FIXED_SPLIT_BY_SOURCE = {"edacc": "ood_test", "youtube": "train"}
 
 
 def _quota(n_speakers: int, ratios: tuple[float, float, float]) -> tuple[int, int]:
-    """(n_test, n_val)。≥3 人保证三个 split 各至少 1 人;1–2 人优先 train/test。"""
+    """(n_test, n_val). With ≥3 speakers every split gets at least one; with 1-2 speakers,
+    train/test take priority."""
     if n_speakers <= 1:
         return (0, 0)
     if n_speakers == 2:
         return (1, 0)
     n_test = max(1, round(n_speakers * ratios[2]))
     n_val = max(1, round(n_speakers * ratios[1]))
-    while n_test + n_val >= n_speakers:  # train 必须非空
+    while n_test + n_val >= n_speakers:  # train must stay non-empty
         if n_val > 1:
             n_val -= 1
         elif n_test > 1:
@@ -49,7 +54,7 @@ def assign_splits(
     ratios: tuple[float, float, float] = (0.8, 0.1, 0.1),
     seed: int = 17,
 ) -> pd.DataFrame:
-    """qc manifest(含 speaker_key)→ split manifest(过 split 阶段校验)。"""
+    """qc manifest (with speaker_key) → split manifest (validated at the split stage)."""
     out = df.copy()
     out["label_source"] = out["source"].map(LABEL_SOURCE_BY_SOURCE)
     for col in ("consensus_score", "evidence_level"):
@@ -61,7 +66,8 @@ def assign_splits(
     for source, fixed in _FIXED_SPLIT_BY_SOURCE.items():
         out.loc[accepted & (out["source"] == source), "split"] = fixed
 
-    # speaker 级表:每个 speaker 恰好一行(标签取众数),保证不会被分到两个 split
+    # Speaker-level table: exactly one row per speaker (label = mode), so no speaker can
+    # ever be assigned to two splits
     pool = out[accepted & ~out["source"].isin(_FIXED_SPLIT_BY_SOURCE)]
     speakers = (
         pool.groupby("speaker_key")
@@ -94,9 +100,11 @@ def assign_splits(
 
 
 def write_speaker_report(df: pd.DataFrame, out: Path) -> pd.DataFrame:
-    """可复核的 speaker 清单(CSV)+ 逐类测试集源数摘要(返回值)。
+    """Auditable speaker roster (CSV) + a per-class summary of test-set source counts
+    (the return value).
 
-    single_source_test=True 的类,其域内测试结论必须限定措辞(confounding 防线之一)。
+    For classes with single_source_test=True, any in-domain test claim must be worded with
+    that caveat — one of the lines of defense against confounding.
     """
     assigned = df[df["split"] != "unassigned"]
     table = (

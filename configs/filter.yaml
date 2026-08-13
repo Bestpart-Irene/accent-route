@@ -1,6 +1,6 @@
-# T6 质量过滤阈值(FilterConfig 字段一一对应)
+# T6 quality-filter thresholds (one-to-one with the FilterConfig fields)
 min_dur_s: 5.0
 max_dur_s: 30.0
-min_snr_proxy_db: 10.0   # 单通道代理量,非真实 SNR
+min_snr_proxy_db: 10.0   # single-channel proxy, not a true SNR
 min_vad_ratio: 0.5
 min_lang_prob: 0.8

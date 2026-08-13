@@ -1,4 +1,4 @@
-"""T2: accent_raw → 8 类映射表(YAML 版本化,白名单外丢弃并计数)。"""
+"""T2: accent_raw → 8-class mapping (versioned YAML; off-whitelist values dropped, counted)."""
 
 from pathlib import Path
 
@@ -36,7 +36,7 @@ class TestMapping:
 
     def test_unmapped_is_counted(self, tax):
         tax.map("scottish english")
-        tax.map("Scottish English")  # 同一归一化键
+        tax.map("Scottish English")  # same normalized key
         tax.map("filipino")
         assert tax.unmapped_counts["scottish english"] == 2
         assert tax.unmapped_counts["filipino"] == 1
@@ -44,7 +44,7 @@ class TestMapping:
     def test_empty_and_none_input(self, tax):
         assert tax.map("") is None
         assert tax.map(None) is None
-        # 空输入不计入 unmapped 统计(缺失 ≠ 映射外)
+        # empty input is not counted as unmapped (missing ≠ off-whitelist)
         assert "" not in tax.unmapped_counts
 
 

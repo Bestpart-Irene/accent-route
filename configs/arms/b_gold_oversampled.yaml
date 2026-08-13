@@ -1,5 +1,6 @@
-# B 臂:gold-only oversampled —— optimizer 步数与 C 完全相同(数据循环即 oversample)。
-# 头条数字 C−B 的对照臂:与 C 只差数据内容,与 A 只差训练预算。
+# Arm B: gold-only, oversampled — the optimizer step count is exactly C's (looping over the
+# smaller gold set is the oversampling). This is the control for the headline C−B number:
+# it differs from C only in data content, and from A only in training budget.
 arm: b_gold_oversampled
-dataset_variant: a_gold        # 数据与 A 相同,预算与 C 相同
+dataset_variant: a_gold        # same data as A, same budget as C
 budget: step_matched_to_c

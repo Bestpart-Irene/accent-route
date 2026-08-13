@@ -1,8 +1,11 @@
-"""source × accent 混杂矩阵与 EdAcc 覆盖报告(G1 门禁输入,决策 #3/#6)。
+"""source × accent confounding matrix and EdAcc coverage report (inputs to the G1 gate,
+decisions #3/#6).
 
-模型可能学到「数据源指纹」而非口音——类别与源高度绑定时,speaker-disjoint
-也挡不住 source shortcut。这里量化绑定程度:单源时长占比 > dominance 的类
-标记 confounded,datasheet 必须携带,结论措辞必须限定。
+A model can learn the "fingerprint of a data source" instead of the accent: when a class is
+tightly bound to one source, even a speaker-disjoint split will not stop the source
+shortcut. This module quantifies how tight that binding is — any class whose dominant
+source holds more than `dominance` of its audio hours is flagged confounded, the flag must
+travel with the datasheet, and conclusions about that class must be worded accordingly.
 """
 
 import pandas as pd
@@ -13,7 +16,7 @@ _REQUIRED = ["source", "accent_label", "speaker_id_raw", "duration_s"]
 
 
 def source_accent_matrix(df: pd.DataFrame) -> pd.DataFrame:
-    """逐 (source, accent_label) 的 n_speakers / n_clips / hours。"""
+    """n_speakers / n_clips / hours per (source, accent_label)."""
     labeled = df[df["accent_label"].notna()][_REQUIRED]
     out = (
         labeled.groupby(["source", "accent_label"], as_index=False)
@@ -28,9 +31,11 @@ def source_accent_matrix(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def flag_confounded(matrix: pd.DataFrame, dominance: float = 0.9) -> pd.DataFrame:
-    """逐类的主导源与时长占比;占比 > dominance → confounded=True。
+    """Per class, the dominant source and its share of hours; share > dominance →
+    confounded=True.
 
-    调用方负责先过滤矩阵范围(例如剔除只进 ood_test 的 edacc)。
+    The caller is responsible for scoping the matrix first (e.g. dropping edacc, which only
+    ever lands in ood_test).
     """
     rows = []
     for label, grp in matrix.groupby("accent_label"):
@@ -50,10 +55,12 @@ def flag_confounded(matrix: pd.DataFrame, dominance: float = 0.9) -> pd.DataFram
 
 
 def edacc_class_coverage(df: pd.DataFrame, min_speakers: int = 5) -> pd.DataFrame:
-    """EdAcc 每类 speaker 覆盖;n_speakers < min_speakers 的类 include=False。
+    """Per-class speaker coverage in EdAcc; classes with n_speakers < min_speakers get
+    include=False.
 
-    include=True 的类构成 supported-class 集合:域外 macro-F1 只在这些类上算
-    (称 supported-class macro-F1,不与完整 8 类横比)。8 类全部列出,缺失补零。
+    The include=True classes form the supported-class set: out-of-domain macro-F1 is
+    computed over those classes only and reported as supported-class macro-F1, never
+    compared against the full 8-class number. All 8 classes are listed, missing ones zeroed.
     """
     if (df["source"] != "edacc").any():
         raise ValueError("edacc_class_coverage expects an edacc-only manifest slice")

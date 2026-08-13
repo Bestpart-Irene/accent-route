@@ -10,15 +10,16 @@
 #SBATCH --error=logs/weaklabel-%j.err
 set -euo pipefail
 
-# Qwen2-Audio-7B-Instruct 弱标注推理(~17GB BF16 权重,24GB 卡够用)。
-# 用法:sbatch scripts/weaklabel_qwen.sbatch <manifest.parquet> <out.parquet>
+# Qwen2-Audio-7B-Instruct weak-label inference (~17GB of BF16 weights, so a 24GB card is
+# enough).
+# Usage: sbatch scripts/weaklabel_qwen.sbatch <manifest.parquet> <out.parquet>
 MANIFEST="${1:?usage: weaklabel_qwen.sbatch <manifest.parquet> <out.parquet>}"
 OUT="${2:?usage: weaklabel_qwen.sbatch <manifest.parquet> <out.parquet>}"
 
 cd "${SLURM_SUBMIT_DIR:-$PWD}"
 mkdir -p logs
 
-# revision 未 pin 时直接失败,避免用漂移的模型产出弱标签
+# Fail fast while revision is unpinned — never mint weak labels from a drifting model
 if grep -q 'revision: PIN_ME' configs/weaklabel.yaml; then
   echo "ERROR: configs/weaklabel.yaml still has revision: PIN_ME — pin the commit sha first" >&2
   exit 1

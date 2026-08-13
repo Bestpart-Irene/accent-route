@@ -1,8 +1,11 @@
-"""质量过滤:raw manifest → qc manifest(taxonomy 映射 + VAD + SNR 代理 + 转写 + LID)。
+"""Quality filtering: raw manifest → qc manifest (taxonomy mapping + VAD + SNR proxy +
+transcription + LID).
 
-模型依赖全部经参数注入(vad_fn / transcribe_fn / lid_fn / audio_loader):
-单测与 CI 用假实现,生产入口再绑真模型(Silero VAD、faster-whisper tiny、fastText)。
-拒绝按最先命中的原因记录,后续昂贵步骤跳过(unmapped/too_short 不加载音频)。
+Every model dependency is injected as a parameter (vad_fn / transcribe_fn / lid_fn /
+audio_loader): unit tests and CI pass fakes, and the production entry point binds the real
+models (Silero VAD, faster-whisper tiny, fastText). A clip is rejected with the first
+reason that fires, and the remaining expensive steps are skipped — unmapped/too_short
+never load audio at all.
 """
 
 import math
@@ -17,7 +20,7 @@ import yaml
 from accentroute.schema import validate_manifest
 from accentroute.taxonomy import Taxonomy
 
-# silero 约定:[{"start": 样本索引, "end": 样本索引}, ...]
+# Silero's convention: [{"start": sample_index, "end": sample_index}, ...]
 SpeechTs = list[dict]
 VadFn = Callable[[np.ndarray, int], SpeechTs]
 TranscribeFn = Callable[[np.ndarray], str]
@@ -44,15 +47,16 @@ def _ratio_from_ts(speech_ts: SpeechTs, n_samples: int) -> float:
 
 
 def compute_vad_ratio(wav: np.ndarray, sr: int, get_speech_ts: VadFn) -> float:
-    """语音样本占比。"""
+    """Fraction of samples that are speech."""
     return _ratio_from_ts(get_speech_ts(wav, sr), len(wav))
 
 
 def estimate_snr_proxy_db(wav: np.ndarray, speech_ts: SpeechTs) -> float:
-    """语音段与非语音段的能量比(dB)。
+    """Energy ratio between speech and non-speech regions, in dB.
 
-    单通道代理量:假设噪声平稳、以非语音段能量近似——不是真实 SNR,
-    字段名 snr_proxy_db 即为此。无非语音样本时返回 +inf。
+    This is a single-channel proxy: it assumes stationary noise and approximates the noise
+    floor with the non-speech energy. It is not true SNR — hence the field name
+    snr_proxy_db. Returns +inf when there are no non-speech samples.
     """
     mask = np.zeros(len(wav), dtype=bool)
     for seg in speech_ts:
@@ -81,7 +85,7 @@ def apply_filters(
     transcribe_fn: TranscribeFn,
     lid_fn: LidFn,
 ) -> pd.DataFrame:
-    """raw manifest → qc manifest(通过 qc 阶段校验后返回)。"""
+    """raw manifest → qc manifest (returned only after it passes qc-stage validation)."""
     out_rows = []
     for row in df.to_dict("records"):
         qc = {

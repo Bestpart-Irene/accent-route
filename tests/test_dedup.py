@@ -1,4 +1,6 @@
-"""T7: 范围化去重 — speaker_key、ANN+union-find 说话人合并、CV 近重复、阈值校准。"""
+"""T7: scoped dedup — speaker keys, ANN + union-find speaker merging, CV near-duplicates,
+and threshold calibration.
+"""
 
 import numpy as np
 import pandas as pd
@@ -36,8 +38,8 @@ class TestCandidateEdges:
         embs = np.stack(
             [
                 _unit([1.0, 0.01, 0.0]),
-                _unit([1.0, 0.02, 0.0]),  # 与 0 几乎同向
-                _unit([0.0, 0.0, 1.0]),  # 正交
+                _unit([1.0, 0.02, 0.0]),  # nearly collinear with row 0
+                _unit([0.0, 0.0, 1.0]),  # orthogonal
             ]
         )
         edges = candidate_edges(embs, k=2, sim_threshold=0.45)
@@ -70,7 +72,7 @@ class TestDedupYoutubeSpeakers:
         )
         centroids = {
             "youtube:vidA:spk0": _unit([1.0, 0.05, 0.0]),
-            "youtube:vidB:spk0": _unit([1.0, 0.03, 0.0]),  # 同一访谈对象
+            "youtube:vidB:spk0": _unit([1.0, 0.03, 0.0]),  # same interviewee, different video
             "youtube:vidC:spk1": _unit([0.0, 1.0, 0.0]),
         }
         out = dedup_youtube_speakers(df, centroids, sim_threshold=0.45)
@@ -78,7 +80,7 @@ class TestDedupYoutubeSpeakers:
         merged = yt[yt["speaker_id_raw"].str.contains("spk0")]["speaker_key"]
         assert merged.nunique() == 1
         assert yt[yt["speaker_id_raw"] == "vidC:spk1"]["speaker_key"].iloc[0] != merged.iloc[0]
-        # 非 youtube 行不动
+        # non-youtube rows are left alone
         assert out[out["source"] == "common_voice"]["speaker_key"].iloc[0] == "common_voice:cv1"
 
 
@@ -126,13 +128,14 @@ class TestNearDuplicates:
 class TestCalibration:
     def test_table_and_threshold(self):
         rng = np.random.default_rng(0)
-        pos = rng.normal(0.85, 0.03, 200)  # 同人对
-        neg = rng.normal(0.10, 0.05, 2000)  # 跨源 hard negatives
+        pos = rng.normal(0.85, 0.03, 200)  # same-speaker pairs
+        neg = rng.normal(0.10, 0.05, 2000)  # cross-source hard negatives
         table = calibration_table(pos, neg)
         assert set(table["pair_type"]) == {"same_speaker", "cross_source_negative"}
         assert len(table) == 2200
         thr = suggest_threshold(pos, neg, max_false_merge=1e-3)
-        # 契约:误合并率达标的最低阈值(最大化同人召回),落在两分布之间
+        # contract: the lowest threshold that meets the false-merge budget (maximizing
+        # same-speaker recall); it has to land between the two distributions
         assert (neg >= thr).mean() <= 1e-3
         assert (pos >= thr).mean() > 0.99
         assert neg.mean() < thr < pos.mean()

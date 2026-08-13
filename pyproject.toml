@@ -11,13 +11,15 @@ dependencies = [
     "typer>=0.12",
     "numpy>=1.26",
     "scikit-learn>=1.5",
-    # 音频 I/O 与重采样:纯 wheel,CI 可用(mp3/wav/flac 覆盖 CV/L2-ARCTIC/EdAcc)
+    # Audio I/O and resampling: pure wheels, so CI can install them
+    # (mp3/wav/flac covers Common Voice, L2-ARCTIC and EdAcc)
     "soundfile>=0.12",
     "soxr>=0.5",
 ]
 
 [project.optional-dependencies]
-# 音频/管线重依赖，本地按需安装；CI 只装核心 + dev（CI 绝不下载模型）
+# Heavy audio/model stacks, installed locally on demand. CI installs core + dev only,
+# because CI must never download a model.
 audio = [
     "silero-vad>=5.1",
     "faster-whisper>=1.0",

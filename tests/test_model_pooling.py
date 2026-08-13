@@ -1,8 +1,9 @@
-"""T9: masked mean-pooling 帧数学 + LoRA 分类器。
+"""T9: masked mean-pooling frame math + the LoRA classifier.
 
-CI 不装 ml extra → importorskip 自动跳过;本地跑全量。
-WhisperFeatureExtractor 用默认构造(参数与 whisper 一致,零网络);
-分类器用微型随机初始化 WhisperConfig,不下载权重。
+CI does not install the `ml` extra, so importorskip skips this file there; it runs in
+full locally. WhisperFeatureExtractor is default-constructed (parameters match whisper,
+zero network), and the classifier uses a tiny randomly initialized WhisperConfig, so no
+weights are downloaded.
 """
 
 import numpy as np
@@ -28,7 +29,7 @@ class TestFrameMathRef:
     def test_reference_values(self):
         assert num_valid_encoder_frames_ref(30 * SR) == 1500
         assert num_valid_encoder_frames_ref(5 * SR) == 250
-        assert num_valid_encoder_frames_ref(60 * SR) == N_ENC_MAX  # 截断封顶
+        assert num_valid_encoder_frames_ref(60 * SR) == N_ENC_MAX  # capped by truncation
 
 
 class TestMaskDerivedPath:
@@ -48,7 +49,7 @@ class TestMaskDerivedPath:
 class TestMaskedMean:
     def test_padding_excluded_exactly(self):
         hidden = torch.randn(2, 10, 4)
-        hidden[0, 6:] = 999.0  # 垃圾 padding
+        hidden[0, 6:] = 999.0  # garbage padding
         hidden[1, 3:] = -999.0
         n_valid = torch.tensor([6, 3])
         got = masked_mean(hidden, n_valid)

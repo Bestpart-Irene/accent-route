@@ -1,7 +1,9 @@
-"""L2-ARCTIC 适配器:{SPEAKER}/wav/*.wav 布局,speaker→L1 表来自 configs/sources/l2_arctic.yaml。
+"""L2-ARCTIC adapter: {SPEAKER}/wav/*.wav layout, with the speaker→L1 table coming from
+configs/sources/l2_arctic.yaml.
 
-全部 6 个 L1 都产出(含 Hindi/Vietnamese):丢弃是 taxonomy 的职责,这里不偷偷砍,
-保证丢弃统计完整。未知说话人目录直接报错——说明下载不完整或表过期。
+All 6 L1s are emitted, Hindi and Vietnamese included: dropping classes is the taxonomy's
+job, so nothing is quietly discarded here and the drop statistics stay complete. An unknown
+speaker directory raises — it means the download is incomplete or the table is stale.
 """
 
 from collections.abc import Iterator

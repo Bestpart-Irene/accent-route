@@ -1,6 +1,6 @@
-# L2-ARCTIC v5 — CC BY-NC 4.0,TAMU PSI 表单申请
-# 24 speakers × 6 L1(各 4 人,2M/2F)。Hindi/Vietnamese 不在 8 类内,
-# 由 taxonomy 丢弃并计数(ingest 不砍)。
+# L2-ARCTIC v5 — CC BY-NC 4.0, requested through the TAMU PSI form.
+# 24 speakers across 6 L1s (4 per L1, 2M/2F). Hindi and Vietnamese fall outside the 8
+# classes, so the taxonomy drops and counts them — ingest never cuts them.
 source: l2_arctic
 license: CC-BY-NC-4.0
 source_uri: https://psi.engr.tamu.edu/l2-arctic-corpus/
@@ -17,7 +17,7 @@ speaker_l1:
   LXC: Mandarin
   NCC: Mandarin
   TXHC: Mandarin
-  # Hindi(taxonomy 丢弃)
+  # Hindi (dropped by the taxonomy)
   ASI: Hindi
   RRBI: Hindi
   SVBI: Hindi
@@ -32,7 +32,7 @@ speaker_l1:
   ERMS: Spanish
   MBMPS: Spanish
   NJS: Spanish
-  # Vietnamese(taxonomy 丢弃)
+  # Vietnamese (dropped by the taxonomy)
   HQTV: Vietnamese
   PNV: Vietnamese
   THV: Vietnamese

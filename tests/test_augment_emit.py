@@ -1,6 +1,7 @@
-"""T14: 增强(仅 train)与三臂数据集产出。
+"""T14: augmentation (train only) and the three-arm dataset emit.
 
-关键不变量:A/B 变体零 weak 行;增强行永远只在 train;统计对账。
+Key invariants: the A and B variants contain zero weak rows, augmented rows only ever
+land in train, and the emitted stats reconcile.
 """
 
 import numpy as np
@@ -78,7 +79,7 @@ class TestAugmentTrain:
         aug = out[out["clip_id"].str.contains("#aug")]
         for _, r in aug.iterrows():
             base = out[out["clip_id"] == r["clip_id"].split("#")[0]].iloc[0]
-            assert r["speaker_key"] == base["speaker_key"]  # 增强不得制造新说话人
+            assert r["speaker_key"] == base["speaker_key"]  # must not invent a new speaker
             assert r["accent_label"] == base["accent_label"]
             assert r["label_source"] == base["label_source"]
 
@@ -109,7 +110,7 @@ class TestEmitDataset:
         assert stats.n_weak_train == 1
 
     def test_eval_splits_identical_across_variants(self, manifest, tmp_path):
-        """三臂必须共享同一套 val/test/ood_test,否则消融不可比。"""
+        """All three arms must share the same eval splits, or the ablation is not comparable."""
         frames = {}
         for variant in ["a_gold", "b_gold_oversampled", "c_gold_weak"]:
             emit_dataset(manifest, variant, tmp_path / variant)
@@ -128,9 +129,9 @@ class TestEmitDataset:
         emit_dataset(df, "loso_l2", tmp_path / "loso")
         out = pd.read_parquet(tmp_path / "loso" / "manifest.parquet")
         train = out[out["split"] == "train"]
-        assert "l2_arctic" not in set(train["source"])  # 训练侧剔除
+        assert "l2_arctic" not in set(train["source"])  # dropped from train
         assert "l2t" not in set(out["clip_id"])
-        assert "l2e" in set(out["clip_id"])  # 测试侧保留
+        assert "l2e" in set(out["clip_id"])  # kept on the test side
 
     def test_stats_reconcile(self, manifest, tmp_path):
         stats = emit_dataset(manifest, "c_gold_weak", tmp_path / "c")

@@ -1,101 +1,101 @@
-# AccentRoute — 面向转写产品的英语口音识别数据管线(设计 spec)
+# AccentRoute — An English Accent Recognition Data Pipeline for Transcription Products (design spec)
 
-日期:2026-08-12 · 状态:v1.2(两轮 review 修订已并入,实施计划已批准,见 `../plans/2026-08-12-accentroute-implementation.md`)
-用途:① mle 简历 data-pipeline 格位项目(建成后替换 LLM Serving);② Clipto 投递敲门砖
-落地位置:`/Users/xxiellan/accent-route`(项目根目录,本 spec 随 repo;GitHub: Bestpart-Irene)
+Date: 2026-08-12 — Status: v1.2 (revisions from two review rounds merged in; implementation plan approved, see `../plans/2026-08-12-accentroute-implementation.md`)
+Purpose: (1) fill the data-pipeline slot on my MLE resume (replaces LLM Serving once built); (2) a door-opener for the Clipto application
+Location: `/Users/xxiellan/accent-route` (project root; this spec ships with the repo; GitHub: Bestpart-Irene)
 
-## 1. 目标
+## 1. Goal
 
-输入 5–30 秒英语语音片段,输出 8 类口音标签。项目重心是**数据管线**(多源整合、LLM 弱标注、质量控制),模型侧刻意保持标准化(Whisper + LoRA),对应岗位族定义的 data pipeline + evaluation 轴。
+Take a 5–30 second English speech clip and predict one of 8 accent labels. The center of gravity is the **data pipeline** (multi-source integration, LLM weak labeling, quality control); the modeling side is deliberately kept off-the-shelf (Whisper + LoRA), which maps onto the data pipeline + evaluation axis that defines this job family.
 
-成功标准(全部可量化):
-1. speaker-disjoint 测试集 macro-F1 显著高于 ECAPA-TDNN 基线与 Qwen2-Audio 零样本;
-2. **头条消融数字**:金标+弱标训练 vs 仅金标训练的 macro-F1 提升(证明数据管线与 LLM 标注的价值);
-3. EdAcc 域外测试(自发对话)上性能不崩(报告域内外差距)。
+Success criteria (all quantifiable):
+1. macro-F1 on a speaker-disjoint test set clearly ahead of both the ECAPA-TDNN baseline and Qwen2-Audio zero-shot;
+2. **headline ablation number**: the macro-F1 gain from training on gold + weak labels versus gold only (this is what demonstrates the value of the data pipeline and of LLM labeling);
+3. performance does not collapse on the EdAcc out-of-domain test (spontaneous conversation); the in-domain/out-of-domain gap is reported.
 
-## 2. 口音类别体系(8 类,锁定)
+## 2. Accent taxonomy (8 classes, locked)
 
-- 母语变体:`en-US`、`en-GB`、`en-AU`、`en-IN`
-- L2 口音(按说话人母语):`L1-Mandarin`、`L1-Spanish`、`L1-Korean`、`L1-Arabic`
+- Native varieties: `en-US`, `en-GB`, `en-AU`, `en-IN`
+- L2 accents (by the speaker's first language): `L1-Mandarin`, `L1-Spanish`, `L1-Korean`, `L1-Arabic`
 
-映射不进 8 类的样本丢弃(如 Scottish、Filipino 等,记录丢弃统计)。en-IN 定义为印度英语(不区分母语/L2)。
+Clips that do not map into the 8 classes are dropped (Scottish, Filipino, and so on), with drop statistics recorded. en-IN is defined as Indian English, with no native/L2 distinction.
 
-## 3. 数据源与许可
+## 3. Data sources and licensing
 
-| 源 | 用途 | 许可要点 |
+| Source | Use | Licensing notes |
 | --- | --- | --- |
-| Common Voice (en) | 主训练集(自报口音标签,自由文本→映射表归类) | CC0,可再分发 |
-| L2-ARCTIC | L2 四类金标 | 研究许可,repo 不再分发音频,给下载脚本 |
-| VCTK | en-GB 等母语类补充 | CC BY 4.0 |
-| Speech Accent Archive | 少量补充/审计集 | CC BY-NC-SA,仅评测用 |
-| EdAcc | **只作域外测试集,不训练** | 实施第 1 周核对许可证,不符合则换 CommonVoice 自发子集 |
-| YouTube 访谈/播客 | 弱标注扩充集 | **不再分发音频**,repo 只发布 URL+时间戳+标签清单;yt-dlp 本地抓取 |
+| Common Voice (en) | Main training set (self-reported accent labels; free text normalized through a mapping table) | CC0, redistributable |
+| L2-ARCTIC | Gold labels for the four L2 classes | Research license; the repo does not redistribute audio, a download script is provided instead |
+| VCTK | Extra coverage for en-GB and the other native classes | CC BY 4.0 |
+| Speech Accent Archive | Small supplement / audit set | CC BY-NC-SA, evaluation only |
+| EdAcc | **Out-of-domain test set only, never trained on** | License verified in week 1 of implementation; if it does not check out, swap in a spontaneous Common Voice subset |
+| YouTube interviews/podcasts | Weak-label expansion set | **Audio is not redistributed**; the repo publishes only a list of URLs + timestamps + labels; fetched locally with yt-dlp |
 
-## 4. 数据管线(7 段,每段独立模块 + 单元测试)
+## 4. The data pipeline (7 stages, each an independent module with unit tests)
 
-1. **ingest**:各源 → 16 kHz mono WAV 分片 + 统一元数据 schema(Parquet:source, speaker_id, accent_raw, duration, split)
-2. **taxonomy**:accent_raw → 8 类映射表(YAML 版本化;CommonVoice 自由文本白名单映射,映射外丢弃并计数)
-3. **filter**:Silero VAD 去静音、时长 ≥5s、SNR 下限、Whisper-tiny 转写 + fastText LID 确认是英语
-4. **dedup & split**:说话人级去重;**speaker-disjoint** train/val/test 切分(同一说话人绝不跨 split);切分脚本输出可复核的 speaker 清单
-5. **weak-label**(上网大模型自动标注):yt-dlp 抓取 → 频道地区元数据先验 + Qwen2-Audio 零样本标注 → **两信号一致才收录**;不一致样本落盘进人工抽查池;记录接受率
-6. **balance & augment**:按类配额采样;变速(0.9/1.1)、加噪(MUSAN)、混响(RIR)增强,只用于训练集
-7. **emit**:两个训练集版本(gold-only / gold+weak,供消融)+ 数据统计报告(类分布、时长分布、说话人数)
+1. **ingest**: every source → 16 kHz mono WAV clips + a unified metadata schema (Parquet: source, speaker_id, accent_raw, duration, split)
+2. **taxonomy**: accent_raw → the 8-class mapping table (versioned YAML; whitelist mapping for Common Voice free text, anything outside the map is dropped and counted)
+3. **filter**: Silero VAD to strip silence, duration ≥5 s, an SNR floor, Whisper-tiny transcription + fastText LID to confirm the clip is English
+4. **dedup & split**: speaker-level dedup; a **speaker-disjoint** train/val/test split (a speaker never crosses a split); the split script emits a reviewable speaker roster
+5. **weak-label** (automatic labeling by a large hosted model): yt-dlp fetch → channel-region metadata prior + Qwen2-Audio zero-shot labeling → **a clip is kept only when both signals agree**; disagreements land in a manual spot-check pool; the acceptance rate is logged
+6. **balance & augment**: per-class quota sampling; speed perturbation (0.9/1.1), added noise (MUSAN) and reverb (RIR), applied to the training split only
+7. **emit**: two versions of the training set (gold-only / gold+weak, for the ablation) + a dataset statistics report (class distribution, duration distribution, speaker counts)
 
-## 5. 模型与训练
+## 5. Model and training
 
-- 底座:`openai/whisper-small` encoder(MIT,冻结)
-- 适配:LoRA(r=16,注意力 q/v 投影)+ mean-pooling + 线性分类头
-- 训练:交叉熵 + 类权重;单卡(AICR rtx 档 / Explorer);预计单次训练 ≤ 数小时
-- 基线:多数类、ECAPA-TDNN(SpeechBrain,Apache-2.0)、Qwen2-Audio 零样本(Apache-2.0,本地推理)
-- 全栈开源,LoRA adapter + 分类头以本人名义发 Hugging Face(带模型卡)
+- Backbone: `openai/whisper-small` encoder (MIT, frozen)
+- Adaptation: LoRA (r=16, attention q/v projections) + mean-pooling + a linear classification head
+- Training: cross-entropy with class weights; single GPU (AICR rtx tier / Explorer); a single run should take a few hours at most
+- Baselines: majority class, ECAPA-TDNN (SpeechBrain, Apache-2.0), Qwen2-Audio zero-shot (Apache-2.0, run locally)
+- Fully open source; the LoRA adapter and classification head are published to Hugging Face under my own account, with a model card
 
-## 6. 评测
+## 6. Evaluation
 
-- 主指标 macro-F1;混淆矩阵重点分析 en-IN vs L2 类、en-GB vs en-AU
-- EdAcc 域外测试单独报告
-- 消融:gold-only vs gold+weak(头条数字)
-- **Stretch(时间允许才做)**:口音感知路由 demo——按预测口音设置 Whisper 解码 prompt,对比默认解码 WER,给 Clipto proposal 提供业务数字
+- Primary metric is macro-F1; the confusion-matrix analysis focuses on en-IN vs the L2 classes and en-GB vs en-AU
+- EdAcc out-of-domain results are reported separately
+- Ablation: gold-only vs gold+weak (the headline number)
+- **Stretch (only if time allows)**: an accent-aware routing demo — set the Whisper decoding prompt from the predicted accent and compare WER against default decoding, which gives the Clipto proposal a business-facing number
 
-## 7. 交付物
+## 7. Deliverables
 
-1. 公开 GitHub repo(管线代码 + 复现脚本 + 单元测试 + CI)
-2. Hugging Face 模型页(adapter 权重 + 模型卡)
-3. 数据 datasheet(源、许可、丢弃统计、弱标注接受率)
-4. Clipto integration proposal(2–3 页):端侧蒸馏/量化路线(ONNX/CoreML)、ASR 前置路由集成点、MCP 工具形态
-5. mle 简历 3 条 bullet(建成后写,替换 LLM Serving 格位;遵守 canonical 三段式,禁 SOTA 措辞,用 weak supervision / data-centric 叙事)
+1. A public GitHub repo (pipeline code + reproduction scripts + unit tests + CI)
+2. A Hugging Face model page (adapter weights + model card)
+3. A dataset datasheet (sources, licenses, drop statistics, weak-label acceptance rate)
+4. A Clipto integration proposal (2–3 pages): the on-device distillation/quantization path (ONNX/CoreML), the integration point for routing ahead of ASR, and the MCP tool shape
+5. Three MLE resume bullets (written once the project is built; replaces the LLM Serving slot; follows the canonical three-part form, avoids SOTA wording, and tells a weak supervision / data-centric story)
 
-## 8. 周期(3 周 part-time)
+## 8. Schedule (3 weeks part-time)
 
-- W1:ingest + taxonomy + filter + dedup/split 跑通,金标数据集成型;EdAcc 许可核对
-- W2:LoRA 训练 + 基线 + 域内评测;weak-label 管线跑通
-- W3:消融 + EdAcc 域外 + HF 发布 + datasheet;有余力做路由 demo;写 Clipto proposal
+- W1: ingest + taxonomy + filter + dedup/split running end to end, the gold dataset taking shape; EdAcc license check
+- W2: LoRA training + baselines + in-domain evaluation; the weak-label pipeline running
+- W3: ablation + EdAcc out-of-domain + HF release + datasheet; the routing demo if there is slack; write the Clipto proposal
 
-## 9. 风险与诚实边界
+## 9. Risks and honest boundaries
 
-- CommonVoice 自报标签噪声 → 白名单映射 + 每类人工抽查 50 条
-- YouTube ToS → 不再分发音频,只发 URL 清单;抓取限速
-- 语音栈对作者是新领域 → 周期按 3 周计,W1 结束若 ingest 未跑通则砍 L2 类别数止损
-- 简历/面试措辞:LoRA fine-tune 开源底座(非从零训练);弱标注是 weak supervision(非人工金标);不声称 SOTA
+- Noise in the Common Voice self-reported labels → whitelist mapping + 50 manually spot-checked clips per class
+- YouTube ToS → no audio redistribution, only a URL list; rate-limited fetching
+- The speech stack is new territory for me → the schedule assumes 3 weeks; if ingest is not working by the end of W1, cut the number of L2 classes to stop the bleeding
+- Resume/interview wording: LoRA fine-tuning of an open-source backbone (not training from scratch); the weak labels are weak supervision (not human gold); no SOTA claims
 
-## 10. 修订记录(v1.1 + v1.2,取代上文冲突条款)
+## 10. Revision log (v1.1 + v1.2, superseding anything above it conflicts with)
 
-两轮 review 后固化的设计修订,完整落地方案见实施计划。与 §1–§9 冲突处以本节为准:
+Design revisions locked in after two rounds of review; the full implementation is in the implementation plan. Where this section conflicts with §1–§9, this section wins.
 
-**v1.1(数据血缘/防泄漏/审计/统计,9 条)**
-1. 消融统计:每配置 3 seeds(17/42/1337);Δmacro-F1 用测试集 speaker 级分层 bootstrap 95% CI。
-2. 弱标注防循环:pin Qwen2-Audio revision sha + prompt 版本化;已接受弱标签人工盲审(25 条/类);某类 precision < 0.80 → 该类弱标签整体剔除;弱标签只进 train(schema 机器强制)。
-3. YouTube 证据等级 E1/E2/E3,只接受 E1/E2 且与 Qwen 一致;弱标数据只进 train。
-4. 去重超越 speaker_id:ECAPA 说话人识别 + 近重复音频 + 转写重合检查。
-5. 统一 schema 扩充:clip_id、原始文件引用、许可、采样率、taxonomy 版本、质量指标、label provenance、consensus_score、reject_reason。
-6. EdAcc W1 双重验证(许可 + 标签映射);覆盖不足的类从域外 macro-F1 排除(supported-class macro-F1)。
-7. Whisper masked mean-pooling(attention mask 推导有效帧数);>30s 取中心窗。
-8. 止损不砍 8 类:先砍补充源,再缩弱标注规模,最后砍发布类工作。
-9. demo/HF 发布/proposal 排在核心实验之后;每周 go/no-go 门禁。
+**v1.1 (data lineage / leakage prevention / auditing / statistics — 9 items)**
+1. Ablation statistics: 3 seeds per configuration (17/42/1337); Δmacro-F1 comes with a speaker-level stratified bootstrap 95% CI computed on the test set.
+2. Breaking weak-label circularity: pin the Qwen2-Audio revision sha and version the prompt; blind human audit of accepted weak labels (25 clips per class); if precision for a class falls below 0.80, that class's weak labels are dropped wholesale; weak labels only ever enter train (machine-enforced by the schema).
+3. YouTube evidence levels E1/E2/E3; only E1/E2 clips that also agree with Qwen are accepted; weakly labeled data only enters train.
+4. Dedup goes beyond speaker_id: ECAPA speaker recognition + near-duplicate audio detection + transcript overlap checks.
+5. The unified schema grows: clip_id, source file reference, license, sample rate, taxonomy version, quality metrics, label provenance, consensus_score, reject_reason.
+6. EdAcc gets double verification in W1 (license + label mapping); classes with insufficient coverage are excluded from the out-of-domain macro-F1 (supported-class macro-F1).
+7. Whisper masked mean-pooling, with the valid frame count derived from the attention mask; clips longer than 30 s use a center window.
+8. The stop-loss ladder never cuts the 8 classes: trim supplementary sources first, then shrink the scale of weak labeling, and only then cut release-facing work.
+9. The demo, the HF release and the proposal all queue behind the core experiments; weekly go/no-go gates.
 
-**v1.2(实验有效性,响应第二轮 review)**
-10. **Source-confounding 控制**:G1 前产出 source × accent 矩阵;单源占比 >90% 的类标记 confounded 并限定结论措辞;测试集每类尽量 ≥2 源;结果按源分层报告;加 LOSO 诊断。
-11. **三臂公平消融**:A gold(epoch 对齐)/ B gold oversampled(步数与 C 相同)/ C gold+weak;共享 augmentation、sampler、固定步数预算、ckpt 规则;**头条数字 = C−B**,A−B 隔离预算效应。
-12. **统计措辞**:test-speaker bootstrap CI 与 seed 变异分开报告;只写 "bootstrap CI excludes zero",不泛称 statistically significant。
-13. 阶段化 schema(raw/qc/split);命名纪律:snr_proxy_db、consensus_score、frozen ECAPA embedding probe、supported-class macro-F1。
-14. 范围收缩:3 周核心 = Common Voice + L2-ARCTIC + EdAcc + 小规模严策展 YouTube(300–600 clips);VCTK、SAA、全局说话人聚类、HF 发布、路由 demo 后置 backlog;**弱标注绝不推迟**(核心论点),只缩规模。
-15. 实施不依赖会话特定 skill;集群交互为 repo 内显式 sbatch + 轮询脚本。
+**v1.2 (experimental validity — response to the second review round)**
+10. **Source-confounding controls**: produce a source × accent matrix before G1; any class where a single source accounts for more than 90% is marked confounded and every conclusion about it is hedged accordingly; aim for ≥2 sources per class in the test set; report results stratified by source; add a LOSO diagnostic.
+11. **Three-arm fair ablation**: A gold (epoch-matched) / B gold oversampled (same step count as C) / C gold+weak; shared augmentation, sampler, fixed step budget and checkpoint rule; **the headline number is C−B**, while A−B isolates the budget effect.
+12. **Statistical wording**: report the test-speaker bootstrap CI and the seed variation separately; write only "bootstrap CI excludes zero", never a blanket claim of statistically significant.
+13. Staged schemas (raw/qc/split); naming discipline: snr_proxy_db, consensus_score, frozen ECAPA embedding probe, supported-class macro-F1.
+14. Scope reduction: the 3-week core is Common Voice + L2-ARCTIC + EdAcc + a small, tightly curated YouTube set (300–600 clips); VCTK, SAA, global speaker clustering, the HF release and the routing demo move to the backlog; **weak labeling is never postponed** (it is the central claim), only scaled down.
+15. Implementation depends on no session-specific skill; cluster interaction is explicit sbatch files and polling scripts checked into the repo.

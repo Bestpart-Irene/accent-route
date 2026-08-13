@@ -1,4 +1,4 @@
-"""T3: 音频规范化(→16kHz mono PCM16)与 ingest 基类。"""
+"""T3: audio normalization (to 16 kHz mono PCM16) and the ingest base class."""
 
 from collections.abc import Iterator
 from pathlib import Path
@@ -15,7 +15,7 @@ from accentroute.schema import validate_manifest
 
 @pytest.fixture()
 def stereo_44k(tmp_path: Path) -> Path:
-    """2 秒 44.1kHz 立体声:左右声道不同频率正弦。"""
+    """Two seconds of 44.1 kHz stereo; the channels are sines at different frequencies."""
     sr = 44100
     t = np.arange(2 * sr) / sr
     left = 0.5 * np.sin(2 * np.pi * 440 * t)
@@ -93,7 +93,7 @@ class TestRunIngest:
     def test_invalid_records_rejected(self, tmp_path):
         with pytest.raises(pandera.errors.SchemaErrors):
             run_ingest(
-                DummyIngestor([_record("a"), _record("a")]),  # 重复 clip_id
+                DummyIngestor([_record("a"), _record("a")]),  # duplicate clip_id
                 tmp_path / "raw.parquet",
             )
 

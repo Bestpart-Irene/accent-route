@@ -1,7 +1,9 @@
-"""Common Voice 适配器:validated.tsv + clips/ 目录布局(HF common_voice_17_0 下载后同构)。
+"""Common Voice adapter: validated.tsv + a clips/ directory (the same layout you get from
+an HF common_voice_17_0 download).
 
-只产出带**单值**自报口音的行:无 accents 跳过,多值(逗号分隔)歧义跳过并计数。
-填充率统计落在 self.stats,G1 的 datasheet 直接引用。
+Only rows with a *single-valued* self-reported accent are emitted: rows with no accents are
+skipped, and multi-valued (comma-separated) rows are skipped as ambiguous and counted.
+Fill-rate statistics land in self.stats, which the G1 datasheet cites directly.
 """
 
 import re
@@ -13,8 +15,9 @@ import soundfile as sf
 
 from accentroute.ingest.base import SourceIngestor
 
-# CV 的多值分隔符是逗号,但官方选项文本自身可含括号内逗号,
-# 例如 "India and South Asia (India, Pakistan, Sri Lanka)" 是单值。
+# Common Voice separates multiple values with commas, but the official option strings can
+# contain commas inside parentheses — "India and South Asia (India, Pakistan, Sri Lanka)"
+# is a single value.
 _ACCENT_SEP = re.compile(r",(?![^()]*\))")
 
 

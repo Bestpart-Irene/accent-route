@@ -1,9 +1,12 @@
-"""EdAcc 适配器:长对话 wav + 分段表 + 说话人语言背景表。
+"""EdAcc adapter: long conversational wavs + a segment table + a speaker language-background
+table.
 
-accent_raw 选择规则(进 datasheet):
-  - L2 说话人(l1 非空且非 English)→ accent_raw = l1(spec 定义 L2 类按母语)
-  - 母语说话人 → accent_raw = accent(语言学家标准化的口音字段)
-列名可在 configs/sources/edacc.yaml 重映射,真实数据落地时只改配置不改代码。
+How accent_raw is chosen (documented in the datasheet):
+  - L2 speakers (l1 is non-empty and not English) → accent_raw = l1, since the spec defines
+    the L2 classes by native language
+  - native speakers → accent_raw = accent, the linguist-normalized accent field
+Column names can be remapped in configs/sources/edacc.yaml, so landing the real data is a
+config change rather than a code change.
 """
 
 from collections.abc import Iterator
@@ -30,7 +33,7 @@ class EdAccIngestor(SourceIngestor):
         self.segments_csv = self.root / segments_csv
         self.speakers_csv = self.root / speakers_csv
         self.source_uri = source_uri
-        # 真实 EdAcc 元数据列名与 fixture 不同时,在 config 里重映射
+        # Remap in the config when the real EdAcc metadata columns differ from the fixtures
         self.col = {
             "segment_id": "segment_id",
             "audio_file": "audio_file",
@@ -58,7 +61,8 @@ class EdAccIngestor(SourceIngestor):
             start = float(seg[self.col["start_s"]])
             end = float(seg[self.col["end_s"]])
             audio_file = seg[self.col["audio_file"]]
-            # 采样率读一次会很慢(长对话文件被多段引用),用 sf.info 带缓存
+            # Reading the sample rate per segment is slow (many segments share one long
+            # conversation file), so cache sf.info by file
             info = self._info(audio_file)
             yield {
                 "clip_id": f"edacc:{seg[self.col['segment_id']]}",

@@ -1,4 +1,4 @@
-"""T5: source × accent 混杂矩阵、confounded 标记、EdAcc supported-class 覆盖。"""
+"""T5: source × accent confounding matrix, confounded flags, EdAcc supported-class coverage."""
 
 import pandas as pd
 import pytest
@@ -11,13 +11,15 @@ from accentroute.reports.coverage_confounding import (
 
 
 def _mini_manifest() -> pd.DataFrame:
-    """en-US 双源均衡;L1-Korean 95% 时长来自单源(应标 confounded)。"""
+    """en-US is balanced across two sources; L1-Korean draws 95% of its hours from a
+    single source, so it should come out flagged as confounded.
+    """
     rows = [
-        # en-US: cv 2 speakers 2h, edacc… 不掺,用第二源 l2_arctic 模拟均衡双源
+        # en-US: 2 CV speakers, 2h; l2_arctic stands in as a balanced second source
         {"source": "common_voice", "accent_label": "en-US", "speaker_id_raw": "s1", "duration_s": 3600.0},
         {"source": "common_voice", "accent_label": "en-US", "speaker_id_raw": "s2", "duration_s": 3600.0},
         {"source": "l2_arctic", "accent_label": "en-US", "speaker_id_raw": "x1", "duration_s": 7200.0},
-        # L1-Korean: cv 只占 5%
+        # L1-Korean: CV contributes only 5%
         {"source": "l2_arctic", "accent_label": "L1-Korean", "speaker_id_raw": "k1", "duration_s": 9500.0},
         {"source": "common_voice", "accent_label": "L1-Korean", "speaker_id_raw": "k2", "duration_s": 500.0},
     ]
@@ -54,7 +56,7 @@ class TestFlagConfounded:
 class TestEdAccCoverage:
     def _edacc_df(self) -> pd.DataFrame:
         rows = []
-        # en-GB: 6 speakers → include;L1-Korean: 2 speakers → exclude
+        # en-GB: 6 speakers → include; L1-Korean: 2 speakers → exclude
         for i in range(6):
             rows.append({"source": "edacc", "accent_label": "en-GB",
                          "speaker_id_raw": f"g{i}", "duration_s": 600.0})

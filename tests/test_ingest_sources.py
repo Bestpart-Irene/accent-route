@@ -1,7 +1,8 @@
-"""T4: 三个核心源适配器(Common Voice / L2-ARCTIC / EdAcc)。
+"""T4: the three core source adapters (Common Voice / L2-ARCTIC / EdAcc).
 
-fixture 是各源真实目录结构的微缩版;适配器只负责枚举 + 元数据,不做标签映射
-(映射是 taxonomy 的事),但 CV 要输出 accents 字段填充率统计。
+The fixtures are miniature copies of each source's real directory layout. An adapter only
+enumerates clips and carries metadata — label mapping belongs to the taxonomy — but CV
+also reports the fill rate of its `accents` column.
 """
 
 from pathlib import Path
@@ -38,8 +39,8 @@ def cv_root(tmp_path: Path) -> Path:
             "sentence": ["s1", "s2", "s3", "s4"],
             "accents": [
                 "United States English",
-                "",  # 无自报 → 跳过
-                "United States English,England English",  # 多值歧义 → 跳过并计数
+                "",  # no self-report → skipped
+                "United States English,England English",  # multi-value → skipped and counted
                 "India and South Asia (India, Pakistan, Sri Lanka)",
             ],
         }
@@ -52,7 +53,7 @@ class TestCommonVoice:
     def test_records(self, cv_root):
         ing = CommonVoiceIngestor(root=cv_root)
         records = list(ing.iter_records())
-        assert len(records) == 2  # 只有 a 和 d 有单值自报口音
+        assert len(records) == 2  # only a and d carry a single self-reported accent
         by_id = {r["clip_id"]: r for r in records}
         a = by_id["cv:a"]
         assert a["accent_raw"] == "United States English"
@@ -72,7 +73,7 @@ class TestCommonVoice:
             "n_no_accent": 1,
             "n_multi_accent_skipped": 1,
             "n_yielded": 2,
-            "accent_fill_rate": 0.75,  # 4 行里 3 行带 accents(含多值)
+            "accent_fill_rate": 0.75,  # 3 of the 4 rows carry accents (multi-value included)
         }
 
 
@@ -102,7 +103,8 @@ class TestL2Arctic:
         assert r["accent_raw"] == "Mandarin"
         assert r["speaker_id_raw"] == "BWC"
         assert r["license"] == "CC-BY-NC-4.0"
-        # Hindi 说话人也要产出(taxonomy 阶段统一丢弃并计数,不在 ingest 偷偷砍)
+        # Hindi speakers are still emitted; the taxonomy stage drops and counts them,
+        # ingest never quietly cuts rows
         assert by_id["l2arctic:ASI:arctic_a0001"]["accent_raw"] == "Hindi"
 
     def test_unknown_speaker_dir_raises(self, l2_root):
@@ -141,7 +143,7 @@ def edacc_root(tmp_path: Path) -> Path:
 
 class TestEdAcc:
     def test_l1_precedence_rule(self, edacc_root):
-        """L2 说话人(l1 非英语)用 l1 作 accent_raw;母语说话人用 accent 字段。"""
+        """L2 speakers (non-English l1) take accent_raw from l1; natives use the accent field."""
         ing = EdAccIngestor(root=edacc_root)
         by_spk = {r["speaker_id_raw"]: r for r in ing.iter_records()}
         assert by_spk["P001"]["accent_raw"] == "Southern British English"

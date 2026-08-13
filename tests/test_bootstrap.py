@@ -1,7 +1,7 @@
-"""T12: 按类分层的 test-speaker paired bootstrap + seed 变异分开报告。
+"""T12: class-stratified test-speaker paired bootstrap, with seed variance reported apart.
 
-措辞纪律在数据结构里固化:报告端只允许引用 ci_excludes_zero,
-不存在任何叫 significant 的字段。
+The wording discipline is baked into the data structure: the reporting side may only
+cite ci_excludes_zero, and no field called `significant` exists anywhere.
 """
 
 import numpy as np
@@ -37,7 +37,10 @@ def _preds_with_accuracy(y, acc, rng, n_seeds=3):
 
 class TestResample:
     def test_every_class_present_in_every_resample(self):
-        """分层重采样:每类的 cluster 数保持不变 → 稀有类不会消失。"""
+        """Stratified resampling holds each class's cluster count fixed.
+
+        A rare class can therefore never vanish from a resample.
+        """
         rng = np.random.default_rng(0)
         strata = {
             "en-US": np.array(["a", "b", "c"]),
@@ -46,7 +49,7 @@ class TestResample:
         for _ in range(50):
             chosen = stratified_cluster_resample(rng, strata)
             assert len(chosen) == 4
-            assert "only-one" in chosen  # 单 cluster 类每次必在
+            assert "only-one" in chosen  # a single-cluster class is present every time
 
 
 class TestBootstrap:
@@ -84,13 +87,13 @@ class TestBootstrap:
         stats = stratified_cluster_bootstrap(y, a, b, spk, y, n_boot=100, seed=1)
         assert len(stats.seed_deltas) == 3
         assert stats.seed_delta_std >= 0
-        # seed_deltas 是全测试集上的逐 seed 配对差,不是 bootstrap 均值
+        # seed_deltas are per-seed paired diffs over the whole test set, not bootstrap means
         from accentroute.eval.metrics import macro_f1
 
         expected0 = macro_f1(y, a[0], labels=CLASSES) - macro_f1(y, b[0], labels=CLASSES)
         assert stats.seed_deltas[0] == pytest.approx(expected0)
 
     def test_no_significant_field(self):
-        """措辞纪律:不存在 significant 字段。"""
+        """Wording discipline: no `significant` field may exist."""
         assert "significant" not in AblationStats.__dataclass_fields__
         assert "ci_excludes_zero" in AblationStats.__dataclass_fields__

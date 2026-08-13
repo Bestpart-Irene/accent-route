@@ -1,4 +1,5 @@
-"""ingest 基类:各源适配器产出 raw-schema 记录,run_ingest 收集、校验、落 Parquet。"""
+"""Ingest base class: each source adapter yields raw-schema records, and run_ingest
+collects, validates, and persists them to Parquet."""
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
@@ -11,7 +12,8 @@ from accentroute.schema import validate_manifest
 
 
 class SourceIngestor(ABC):
-    """每个数据源一个子类。iter_records 产出的 dict 必须能通过 raw 阶段校验。"""
+    """One subclass per data source. The dicts iter_records yields must pass raw-stage
+    validation."""
 
     source: ClassVar[str]
     license: ClassVar[str]
@@ -21,7 +23,8 @@ class SourceIngestor(ABC):
 
 
 def run_ingest(ingestor: SourceIngestor, out: Path) -> Path:
-    """收集记录 → raw 校验 → 写 Parquet。校验失败直接抛出,不落盘半成品。"""
+    """Collect records → validate against raw → write Parquet. Validation failures raise
+    immediately so no half-finished manifest ever hits disk."""
     records = list(ingestor.iter_records())
     if not records:
         raise ValueError(f"ingestor {type(ingestor).__name__} produced no records")

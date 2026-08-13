@@ -1,11 +1,13 @@
-"""弱标签共识:证据等级 × Qwen 自洽投票(决策 #3/#5)。
+"""Weak-label consensus: evidence level × Qwen self-consistency voting (decisions #3/#5).
 
-接受条件(全满足):
-  1. evidence_level ∈ {E1, E2} —— 频道地区元数据单独不足以定口音;
-  2. Qwen 多数票 == 人工先验标签;
-  3. 多数强度 ≥ 2/3。
-E3 或不一致 → review 池(进人工抽查,不进训练)。
-consensus_score = 多数票比例 × 证据权重,是工程排序分,不是校准置信度。
+A label is accepted only when all three hold:
+  1. evidence_level ∈ {E1, E2} — channel/region metadata alone cannot establish an accent;
+  2. the Qwen majority vote == the human prior label;
+  3. the majority is at least 2/3.
+E3, or any disagreement, goes to the review pool: it is sampled for human audit and never
+reaches training.
+consensus_score = majority share × evidence weight. It is an engineering ranking score,
+not a calibrated confidence.
 """
 
 from collections import Counter
@@ -40,10 +42,10 @@ def consensus(
 
 
 def apply_consensus(df: pd.DataFrame) -> pd.DataFrame:
-    """逐行判定 → status/accent_label/consensus_score/split。
+    """Decide row by row → status/accent_label/consensus_score/split.
 
-    接受行固定 label_source="weak"、split="train"(schema 的 weak_never_in_eval
-    再把这条不变量兜住一次)。
+    Accepted rows are pinned to label_source="weak" and split="train"; the schema's
+    weak_never_in_eval check backstops that invariant a second time.
     """
     out = df.copy()
     decisions = [

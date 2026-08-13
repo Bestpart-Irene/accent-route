@@ -1,4 +1,6 @@
-"""T13(续): Qwen 配置 pin 与批量投票 —— 生成函数注入,CI 零下载。"""
+"""T13 (cont.): Qwen config pinning and batch voting — the generation function is
+injected, so CI downloads nothing.
+"""
 
 import json
 from pathlib import Path
@@ -19,7 +21,7 @@ class TestConfigPinning:
         assert cfg.kill_precision == 0.80
 
     def test_prompt_sha_matches_repo_prompt(self):
-        """prompt 文件与 config 里 pin 的 sha256 必须一致。"""
+        """The prompt file must match the sha256 pinned in the config."""
         WeakLabelConfig.from_yaml(CONFIG).load_prompt()
 
     def test_prompt_drift_rejected(self, tmp_path):
@@ -33,10 +35,10 @@ class TestConfigPinning:
             cfg.load_prompt()
 
     def test_repo_config_flags_unpinned_revision(self):
-        """revision 留 PIN_ME 时,sbatch 会拒绝提交;这里固化该契约。"""
+        """While revision is PIN_ME, the sbatch refuses to submit; this pins that contract."""
         cfg = WeakLabelConfig.from_yaml(CONFIG)
         assert cfg.revision == "PIN_ME", (
-            "revision 已 pin — 请同步更新此测试与 datasheet 的 pin 日期记录"
+            "revision is now pinned — update this test and the datasheet pin-date record"
         )
 
 
@@ -64,7 +66,7 @@ class TestLabelBatch:
         df = pd.read_parquet(out)
         assert list(df["qwen_votes"].iloc[0]) == ["en-AU"] * 3
         assert list(df["qwen_votes"].iloc[1]) == ["unsure"] * 3
-        assert len(calls) == 6  # 2 clips × k=3
+        assert len(calls) == 6  # 2 clips × k=3 votes
 
         meta = json.loads(Path(str(out).replace(".parquet", ".meta.json")).read_text())
         assert meta["revision"] == "deadbeef"

@@ -1,6 +1,7 @@
 #!/bin/bash
-# 轮询 Slurm 作业直到全部终态,逐个打印结果(成功与失败都报,静默不等于成功)。
-# 用法:scripts/watch_jobs.sh <jobid> [jobid...]
+# Poll Slurm jobs until every one reaches a terminal state, printing each result as it
+# lands (successes and failures alike — silence is not success).
+# Usage: scripts/watch_jobs.sh <jobid> [jobid...]
 set -uo pipefail
 
 JOBS=("$@")

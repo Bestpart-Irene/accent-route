@@ -1,13 +1,14 @@
-# 弱标注冻结配置(决策 #2 防循环论证)。
-# revision 必须在首次运行前 pin 死:
+# Frozen weak-labeling config (decision #2, guards against circular reasoning).
+# `revision` must be pinned hard before the first run:
 #   uv run python -c "from huggingface_hub import HfApi; \
 #     print(HfApi().model_info('Qwen/Qwen2-Audio-7B-Instruct').sha)"
-# 然后把 sha 填进下面,并在 datasheet 记录 pin 日期。
-# 同一份配置被弱标注(T13)与零样本基线(T11)共用 —— 双重角色必须在报告中披露。
+# Paste the sha below, and record the pin date in the datasheet.
+# The same config is shared by weak labeling (T13) and the zero-shot baseline (T11) — that
+# dual role has to be disclosed in the report.
 model_id: Qwen/Qwen2-Audio-7B-Instruct
-revision: PIN_ME              # 首次上机前替换为 commit sha,勿留 PIN_ME
+revision: PIN_ME              # replace with the commit sha before the first run; never leave PIN_ME
 prompt_file: prompts/qwen2audio_accent_v1.txt
 prompt_sha256: 2d3ea2e15006b9401a56f1be1a815f42be08513d42d46f1a3e8c63dfacfbddf3
-k_votes: 3                    # 自洽投票次数;止损阶梯 ② 可降到 1(规则不变)
+k_votes: 3                    # self-consistency votes; stop-loss ladder ② can drop this to 1 (rule unchanged)
 temperature: 0.7
-kill_precision: 0.80          # 审计 precision 低于此值 → 该类弱标签整体剔除
+kill_precision: 0.80          # if audited precision falls below this, drop that class's weak labels entirely

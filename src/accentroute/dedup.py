@@ -1,8 +1,11 @@
-"""范围化去重(v1.2):speaker_key 分配、YouTube 集内说话人合并、CV 近重复检测。
+"""Scoped deduplication (v1.2): speaker_key assignment, within-YouTube speaker merging,
+and near-duplicate detection on Common Voice.
 
-架构从一开始按可扩展设计:ANN 候选边 + union-find,全局跨源聚类(backlog)
-只需把 candidate_edges 的精确近邻换成 faiss,签名不变。
-split 的键是 speaker_key —— 它的正确性决定所有头条数字的可信度。
+The architecture was built to scale from the start: ANN candidate edges + union-find.
+Global cross-source clustering (backlog) only needs candidate_edges to swap its exact
+nearest-neighbor search for faiss; the signature stays the same.
+speaker_key is the key the split is built on — its correctness is what makes every
+headline number trustworthy.
 """
 
 from collections.abc import Iterable
@@ -12,7 +15,7 @@ import pandas as pd
 
 
 def assign_speaker_keys(df: pd.DataFrame) -> pd.DataFrame:
-    """缺省 speaker_key = f"{source}:{speaker_id_raw}"。"""
+    """Default speaker_key = f"{source}:{speaker_id_raw}"."""
     out = df.copy()
     out["speaker_key"] = out["source"] + ":" + out["speaker_id_raw"]
     return out
@@ -21,10 +24,11 @@ def assign_speaker_keys(df: pd.DataFrame) -> pd.DataFrame:
 def candidate_edges(
     embs: np.ndarray, k: int = 20, sim_threshold: float = 0.45
 ) -> list[tuple[int, int]]:
-    """embs: [n, d] L2 归一化。top-k 余弦近邻生成候选边,避免 O(n²) 全矩阵。
+    """embs: [n, d], L2-normalized. Builds candidate edges from top-k cosine neighbors,
+    avoiding the full O(n²) similarity matrix.
 
-    核心范围 n 只有数百(YouTube 集内),sklearn 精确近邻足够;
-    换 faiss 只改这里的实现。
+    In the scope that matters here n is only a few hundred (within YouTube), so sklearn's
+    exact neighbor search is plenty; switching to faiss only touches this function.
     """
     from sklearn.neighbors import NearestNeighbors
 
@@ -61,10 +65,12 @@ def dedup_youtube_speakers(
     centroids: dict[str, np.ndarray],
     sim_threshold: float = 0.45,
 ) -> pd.DataFrame:
-    """YouTube 集内:ECAPA 质心相似的 speaker_key 合并为簇内最小键。
+    """Within YouTube: speaker_keys with similar ECAPA centroids collapse to the smallest
+    key in their cluster.
 
-    跨频道/视频的同一访谈对象合并后,speaker-disjoint 切分才真正成立。
-    非 youtube 行原样返回(全局跨源聚类在 backlog)。
+    The speaker-disjoint split only truly holds once the same interviewee appearing across
+    channels and videos has been merged. Non-YouTube rows pass through untouched (global
+    cross-source clustering is on the backlog).
     """
     out = df.copy()
     keys = sorted(k for k in centroids if k.startswith("youtube:"))
@@ -74,7 +80,7 @@ def dedup_youtube_speakers(
     labels = union_find_clusters(len(keys), candidate_edges(embs, sim_threshold=sim_threshold))
     canonical: dict[int, str] = {}
     for key, lab in zip(keys, labels):
-        canonical.setdefault(lab, key)  # keys 已排序 → 簇内最小键
+        canonical.setdefault(lab, key)  # keys are sorted → smallest key in the cluster
     remap = {key: canonical[lab] for key, lab in zip(keys, labels)}
     mask = out["source"] == "youtube"
     out.loc[mask, "speaker_key"] = out.loc[mask, "speaker_key"].map(lambda k: remap.get(k, k))
@@ -86,10 +92,12 @@ def find_near_duplicates(
     max_dur_delta_s: float = 0.5,
     min_jaccard: float = 0.8,
 ) -> pd.DataFrame:
-    """转写 Jaccard ≥ min_jaccard 且 |Δ时长| ≤ max_dur_delta_s → 留一拒余。
+    """Transcript Jaccard ≥ min_jaccard and |Δduration| ≤ max_dur_delta_s → keep one,
+    reject the rest.
 
-    按时长排序 + 滑窗配对,避免 O(n²);保留 clip_id 最小的一条,
-    其余 status=rejected, reject_reason="near_duplicate"。
+    Sorts by duration and pairs within a sliding window to avoid O(n²). The clip with the
+    smallest clip_id survives; the others get status=rejected and
+    reject_reason="near_duplicate".
     """
     out = df.copy()
     cand = out[out["status"] == "accepted"].dropna(subset=["transcript"])
@@ -101,7 +109,7 @@ def find_near_duplicates(
             continue
         for j in order[a_pos + 1 :]:
             if out.at[j, "duration_s"] - out.at[i, "duration_s"] > max_dur_delta_s:
-                break  # 已按时长排序,后面只会更远
+                break  # sorted by duration, so everything after this is further away
             if j in rejected:
                 continue
             ti, tj = tokens[i], tokens[j]
@@ -114,7 +122,8 @@ def find_near_duplicates(
 
 
 def calibration_table(pos_sims: np.ndarray, neg_sims: np.ndarray) -> pd.DataFrame:
-    """校准直方图数据:同人对 vs 跨源 hard negatives 的相似度分布。"""
+    """Calibration histogram data: similarity distribution of same-speaker pairs vs.
+    cross-source hard negatives."""
     return pd.DataFrame(
         {
             "similarity": np.concatenate([pos_sims, neg_sims]),
@@ -127,7 +136,8 @@ def calibration_table(pos_sims: np.ndarray, neg_sims: np.ndarray) -> pd.DataFram
 def suggest_threshold(
     pos_sims: np.ndarray, neg_sims: np.ndarray, max_false_merge: float = 1e-3
 ) -> float:
-    """满足误合并率约束的最低阈值(最大化同人召回)。"""
+    """Lowest threshold satisfying the false-merge rate constraint (maximizes same-speaker
+    recall)."""
     for thr in np.sort(np.unique(np.concatenate([pos_sims, neg_sims]))):
         if (neg_sims >= thr).mean() <= max_false_merge:
             return float(thr)

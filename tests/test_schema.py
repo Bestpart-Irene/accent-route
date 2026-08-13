@@ -1,9 +1,9 @@
-"""T1: 阶段化 manifest schema 的行为契约。
+"""T1: behavioral contract for the staged manifest schema.
 
-三个不变量必须被机器强制：
-  1. rejected 行必须有 reject_reason
-  2. label_source == "weak" 的行绝不允许出现在 val/test/ood_test
-  3. youtube 来源的 accepted 行必须是 E1/E2 证据等级
+Three invariants have to be machine-enforced:
+  1. a rejected row must carry a reject_reason
+  2. a row with label_source == "weak" may never appear in val/test/ood_test
+  3. an accepted row from youtube must carry an E1 or E2 evidence level
 """
 
 import pandas as pd
@@ -34,7 +34,7 @@ def make_raw_df(**overrides) -> pd.DataFrame:
 def make_split_df(**overrides) -> pd.DataFrame:
     row = {
         **make_raw_df().iloc[0].to_dict(),
-        # qc 阶段字段
+        # qc-stage fields
         "accent_label": "en-US",
         "taxonomy_version": "v1",
         "snr_proxy_db": 22.5,
@@ -43,7 +43,7 @@ def make_split_df(**overrides) -> pd.DataFrame:
         "transcript": "hello world",
         "status": "accepted",
         "reject_reason": None,
-        # split 阶段字段
+        # split-stage fields
         "speaker_key": "common_voice:cv_speaker_1",
         "split": "train",
         "label_source": "self_report",

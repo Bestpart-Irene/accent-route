@@ -1,4 +1,4 @@
-"""冻结 whisper encoder + LoRA(r=16, q/v)+ masked mean-pooling + 线性头。"""
+"""Frozen whisper encoder + LoRA (r=16, on q/v) + masked mean-pooling + a linear head."""
 
 import torch
 from torch import nn
@@ -7,7 +7,8 @@ from accentroute.model.pooling import masked_mean
 
 
 class WhisperEncoderClassifier(nn.Module):
-    """encoder 全冻结,LoRA 只打 q_proj/v_proj,分类头可训。"""
+    """The encoder is fully frozen, LoRA touches only q_proj/v_proj, and the classification
+    head is trainable."""
 
     def __init__(
         self,
@@ -34,7 +35,7 @@ class WhisperEncoderClassifier(nn.Module):
         self.head = nn.Linear(d_model, n_classes)
 
     def forward(self, input_features: torch.Tensor, n_valid: torch.Tensor) -> torch.Tensor:
-        """input_features: [B, 80, 3000]; n_valid: [B] → logits [B, n_classes]。"""
+        """input_features: [B, 80, 3000]; n_valid: [B] → logits [B, n_classes]."""
         hidden = self.encoder(input_features).last_hidden_state  # [B, 1500, D]
         return self.head(masked_mean(hidden, n_valid))
 
@@ -47,7 +48,8 @@ def build_model(
     lora_dropout: float = 0.05,
     revision: str | None = None,
 ) -> WhisperEncoderClassifier:
-    """生产入口:下载底座权重(测试不走这里,用微型随机 encoder 直构)。"""
+    """Production entry point: downloads the backbone weights. Tests bypass this and
+    construct the classifier around a tiny randomly initialized encoder."""
     from transformers import WhisperModel
 
     whisper = WhisperModel.from_pretrained(base_model, revision=revision)
