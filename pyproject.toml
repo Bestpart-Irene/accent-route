@@ -9,6 +9,10 @@ dependencies = [
     "pandera>=0.24",
     "pyyaml>=6.0",
     "typer>=0.12",
+    "numpy>=1.26",
+    # 音频 I/O 与重采样:纯 wheel,CI 可用(mp3/wav/flac 覆盖 CV/L2-ARCTIC/EdAcc)
+    "soundfile>=0.12",
+    "soxr>=0.5",
 ]
 
 [project.optional-dependencies]
@@ -16,8 +20,6 @@ dependencies = [
 audio = [
     "silero-vad>=5.1",
     "faster-whisper>=1.0",
-    "soundfile>=0.12",
-    "librosa>=0.10",
 ]
 ml = [
     "torch>=2.4",
