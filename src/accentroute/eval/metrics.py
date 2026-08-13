@@ -26,11 +26,18 @@ def confusion(
 def macro_f1(
     y_true: np.ndarray, y_pred: np.ndarray, labels: Sequence[str] = tuple(ACCENTS)
 ) -> float:
-    """逐类 F1 的未加权均值;无支持且无预测的类记 0(与 sklearn zero_division=0 一致)。"""
-    m = confusion(y_true, y_pred, labels)
-    tp = np.diag(m).astype(np.float64)
-    fp = m.sum(axis=0) - tp
-    fn = m.sum(axis=1) - tp
-    denom = 2 * tp + fp + fn
-    f1 = np.divide(2 * tp, denom, out=np.zeros_like(tp), where=denom > 0)
-    return float(f1.mean())
+    """逐类 F1 的未加权均值;无支持且无预测的类记 0(与 sklearn zero_division=0 一致)。
+
+    不走 confusion 矩阵:labels 取子集时,预测值落在子集外的样本必须计入
+    真实类的 FN(否则 supported-class macro-F1 虚高),逐类直接数 TP/FP/FN。
+    """
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    f1s = []
+    for lab in labels:
+        tp = float(np.sum((y_true == lab) & (y_pred == lab)))
+        fp = float(np.sum((y_pred == lab) & (y_true != lab)))
+        fn = float(np.sum((y_true == lab) & (y_pred != lab)))
+        denom = 2 * tp + fp + fn
+        f1s.append(2 * tp / denom if denom > 0 else 0.0)
+    return float(np.mean(f1s))
