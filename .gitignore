@@ -2,6 +2,10 @@
 # (L2-ARCTIC and YouTube licensing).
 data/
 runs/
+# ...but keep the small result summaries: they are what the README cites, and a claim
+# whose numbers are not in the repo is not reproducible.
+!runs/*/results.json
+!runs/*/metrics.json
 *.wav
 *.mp3
 *.ckpt

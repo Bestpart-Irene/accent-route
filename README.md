@@ -9,8 +9,34 @@ different speaking style.
 
 ## Results
 
-<!-- RESULTS -->
-_Training run in progress; this section is filled from `runs/accent_v1/results.json`._
+Four native varieties, `whisper-small` encoder frozen, LoRA r=16 on the attention q/v
+projections, three seeds (17/42/1337), one B200, 26 minutes.
+
+| | macro-F1 |
+| --- | --- |
+| **In-domain** — 468 clips, **257 held-out speakers** | **0.753 ± 0.015** |
+| **Out-of-domain** — EdAcc, supported classes | **0.639 ± 0.028** |
+| In-domain control on the same class subset | 0.769 |
+| Majority-class baseline | 0.141 |
+
+Per-class F1, mean over seeds: `en-IN` 0.804, `en-US` 0.769, `en-GB` 0.735, `en-AU` 0.706.
+No class is degenerate, and the confusion that remains is mostly `en-GB` ↔ `en-US`.
+
+**The out-of-domain number is the one that matters.** Training data comes from a single
+corpus, so the confounding report flags all four classes as source-dominated — the obvious
+suspicion is that the model learned GLOBE's recording fingerprint rather than accent. If
+that were true, EdAcc would collapse toward chance: it is a different corpus, different
+recording conditions, and spontaneous conversation instead of read speech. It drops 0.130
+and stays far above baseline, which is evidence the learned signal survives a change of
+corpus and of speaking style.
+
+EdAcc covers three of the four classes (it contains no Australian speakers at all), so its
+figure is a supported-class macro-F1 over 545 clips from 20 speakers, quoted against an
+in-domain control computed on that same subset rather than against the full four-class
+number.
+
+Reproduce with `scripts/globe_prepare.sbatch` then `scripts/train_eval.sbatch`; raw
+numbers in `runs/accent_v1/results.json`.
 
 ## Why the evaluation is set up this way
 
