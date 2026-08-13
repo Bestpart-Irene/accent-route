@@ -1,0 +1,5 @@
+# LOSO-L2 诊断(单 seed):L2 四类训练剔除 L2-ARCTIC(只剩 CV 自报 L2),
+# 在 L2-ARCTIC holdout speakers 上测 —— 量化跨源泛化 vs source shortcut。
+arm: loso_l2
+dataset_variant: loso_l2
+budget: epoch_matched

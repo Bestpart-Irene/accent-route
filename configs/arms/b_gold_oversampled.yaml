@@ -1,0 +1,5 @@
+# B 臂:gold-only oversampled —— optimizer 步数与 C 完全相同(数据循环即 oversample)。
+# 头条数字 C−B 的对照臂:与 C 只差数据内容,与 A 只差训练预算。
+arm: b_gold_oversampled
+dataset_variant: a_gold        # 数据与 A 相同,预算与 C 相同
+budget: step_matched_to_c

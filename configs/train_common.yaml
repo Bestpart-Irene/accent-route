@@ -1,0 +1,19 @@
+# 三臂与 LOSO 共享的训练协议 —— 任何字段不得被臂配置覆盖(加载器强制)。
+# 消融公平性的机制保证:同预算规则、同采样、同增强、同 ckpt 选择。
+epochs_c: 15                 # 以 C 臂数据量为基准的预算锚点
+batch_size: 32
+lr: 1.0e-4
+lr_schedule: cosine
+warmup_ratio: 0.05
+sampler: class_balanced      # 用采样器平衡类,CE 不再加类权重(避免双重校正)
+augment:
+  speed: [0.9, 1.1]
+  musan: true
+  rir: true
+ckpt_select: best_val_macro_f1   # 固定步数预算,无 early stopping
+seeds: [17, 42, 1337]
+base_model: openai/whisper-small
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+n_classes: 8

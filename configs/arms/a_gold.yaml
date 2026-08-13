@@ -1,0 +1,4 @@
+# A 臂:gold-only,epoch 对齐(与 C 相同 epoch 数,步数 < S_C)
+arm: a_gold
+dataset_variant: a_gold
+budget: epoch_matched

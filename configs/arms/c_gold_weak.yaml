@@ -1,0 +1,4 @@
+# C 臂:gold + accepted weak;epoch_matched 在自身数据上定出 S_C(写入 run 元数据)
+arm: c_gold_weak
+dataset_variant: c_gold_weak
+budget: epoch_matched
