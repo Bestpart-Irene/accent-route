@@ -303,8 +303,8 @@ seeds: [17, 42, 1337]
 
 ### Week 3 — 三臂实验 + 分层评测 → Gate G3 → datasheet
 
-- [ ] **T14 增强 + 三个数据集变体**：`augment.py`、`emit.py`。`augment_train(df,wav_dir,cfg)->df`（只对 train 行）；`emit_dataset(df, arm: Literal["a_gold","b_gold_oversampled","c_gold_weak"], out_dir)->DatasetStats`（B 的 oversample 由训练端步数控制，emit 只标记 arm 与数据内容）。测试：增强行只在 train；A/B 变体零 weak 行；统计对账。依赖 T8、T13。
-- [ ] **T15 实验矩阵 + 分层评测**：`scripts/run_experiments.py`、`scripts/train.sbatch`、`eval/tables.py`。矩阵 = 3 臂×3 seeds（9 次）+ LOSO-L2 单 seed 诊断（10 次训练，AICR rtx，watch_jobs.sh 盯）。`make_results_tables(runs_dir)->Path`：① 三臂消融表（C−B 头条 + A−B 预算效应，bootstrap CI + seed std 分列）；② **按源分层的每类 F1**；③ EdAcc supported-class macro-F1（附域内模型在同一支持类子集的对照值）；④ 混淆矩阵重点 en-IN vs L2、en-GB vs en-AU；⑤ LOSO 表。测试：从 fixture run 目录生成全部表；CI 列与 T12 输出一致；措辞模板校验（禁 "statistically significant"）。依赖 T10–T12、T14。
+- [x] **T14 增强 + 三个数据集变体**：`augment.py`、`emit.py`。`augment_train(df,wav_dir,cfg)->df`（只对 train 行）；`emit_dataset(df, arm: Literal["a_gold","b_gold_oversampled","c_gold_weak"], out_dir)->DatasetStats`（B 的 oversample 由训练端步数控制，emit 只标记 arm 与数据内容）。测试：增强行只在 train；A/B 变体零 weak 行；统计对账。依赖 T8、T13。
+- [x] **T15 实验矩阵 + 分层评测**：`scripts/run_experiments.py`、`scripts/train.sbatch`、`eval/tables.py`。矩阵 = 3 臂×3 seeds（9 次）+ LOSO-L2 单 seed 诊断（10 次训练，AICR rtx，watch_jobs.sh 盯）。`make_results_tables(runs_dir)->Path`：① 三臂消融表（C−B 头条 + A−B 预算效应，bootstrap CI + seed std 分列）；② **按源分层的每类 F1**；③ EdAcc supported-class macro-F1（附域内模型在同一支持类子集的对照值）；④ 混淆矩阵重点 en-IN vs L2、en-GB vs en-AU；⑤ LOSO 表。测试：从 fixture run 目录生成全部表；CI 列与 T12 输出一致；措辞模板校验（禁 "statistically significant"）。依赖 T10–T12、T14。
 - [ ] **T16 Datasheet + proposal + 简历 bullets（Gate G3：T15 数字落定后启动）**：`docs/datasheet.md`、`docs/clipto-proposal.md`。datasheet 必含：许可表、丢弃统计、弱标注接受率、审计三池结果（accepted precision + Wilson 区间、reject 池 false-reject）、kill 触发记录、taxonomy 版本、**混杂矩阵与 confounded 类清单**、去重残余风险声明、L2 测试集构成与宽 CI 说明。proposal（2–3 页）：端侧蒸馏/量化路线、ASR 前置路由集成点、MCP 工具形态。简历 3 条 bullet（canonical 三段式，禁 SOTA）。依赖 T15。
 
 ### Backlog（3 周外，按价值排序）
