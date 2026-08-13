@@ -47,6 +47,22 @@ def fetch() -> None:
     per["hours"] = (per.hours / 3600).round(2)
     print(per.to_string())
 
+    # `datasets` streaming leaves HTTP worker threads that abort the interpreter during
+    # finalization ("PyGILState_Release: thread state must be current"), long after the
+    # work is durably on disk. Skipping finalization is the workaround — but only once the
+    # outputs are verified present, so a genuine failure still exits non-zero rather than
+    # being papered over.
+    manifest = MAN / "globe_raw.parquet"
+    n_wavs = len(list(WAV.glob("*.wav")))
+    if not manifest.exists() or n_wavs < len(df):
+        raise SystemExit(
+            f"fetch incomplete: manifest={manifest.exists()}, wavs={n_wavs}, rows={len(df)}"
+        )
+    print(f"verified {n_wavs} wavs and the manifest on disk; exiting before finalization")
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(0)
+
 
 def pipeline() -> None:
     import soundfile as sf
