@@ -280,7 +280,7 @@ seeds: [17, 42, 1337]
 
 ### Week 1 — 金标管线（CV + L2-ARCTIC + EdAcc）→ Gate G1
 
-- [ ] **T1 脚手架 + 阶段化 schema**：`pyproject.toml`、`ci.yml`、`schema.py`（规范 (a)）、`tests/test_schema.py`。测试：raw 合法行过 raw 校验但（缺列）不过 split 校验；weak-in-test 拒；rejected 无 reason 拒；CI 绿。**同时**：9+10 条决策以「修订 v1.2」回写 spec；本计划落盘 `docs/superpowers/plans/`。依赖：无。
+- [x] **T1 脚手架 + 阶段化 schema**：`pyproject.toml`、`ci.yml`、`schema.py`（规范 (a)）、`tests/test_schema.py`。测试：raw 合法行过 raw 校验但（缺列）不过 split 校验；weak-in-test 拒；rejected 无 reason 拒；CI 绿。**同时**：9+10 条决策以「修订 v1.2」回写 spec；本计划落盘 `docs/superpowers/plans/`。依赖：无。
 - [ ] **T2 Taxonomy**：`taxonomy.py` + `configs/taxonomy_v1.yaml`。`load_taxonomy(path)->Taxonomy`；`Taxonomy.map(raw)->str|None`；`.version`。测试："united states english"→en-US；"scottish"→None 且计数；大小写/空白鲁棒。依赖 T1。
 - [ ] **T3 音频工具 + ingest 基类**：`audio.py`、`ingest/base.py`。`to_wav16k_mono(src,dst)->AudioMeta`；`SourceIngestor.iter_records()`；`run_ingest(ing,out)->Path`（产出过 raw 校验）。测试：44.1k 立体声 fixture → 16k mono；切片偏移精确。依赖 T1。
 - [ ] **T4 三个源适配器**：`ingest/{common_voice,l2_arctic,edacc}.py` + `configs/sources/*.yaml`。测试：微型 fixture → 行/许可串正确、CV accent_raw 填充率统计输出。**W1 第 1 天并行启动**：MDC 注册、L2-ARCTIC 表单、HF CV17 gate。依赖 T2、T3。

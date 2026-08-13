@@ -1,0 +1,49 @@
+# accent_raw → 8 类白名单映射,v1
+#
+# 键在加载时归一化(小写、压缩空白)后查表;表外值丢弃并计数(taxonomy.unmapped_counts)。
+# 这是保守起点:T4 各源 ingest 会输出未覆盖值的 top-N 统计,扩表走 v2(版本号必须递增,
+# manifest 的 taxonomy_version 字段记录用的是哪版)。
+#
+# 已知的近似决策(datasheet 必须如实记录):
+# - CV 官方选项 "india and south asia (india, pakistan, sri lanka)" 映射到 en-IN,
+#   比 spec 的"印度英语"定义更宽,是有意的近似。
+# - "canadian english"、"new zealand english"、"scottish english" 等不在 8 类内,故意不映射。
+
+version: v1
+
+mapping:
+  # ── en-US ──────────────────────────────────────────────
+  united states english: en-US
+  american english: en-US
+  us english: en-US
+
+  # ── en-GB ──────────────────────────────────────────────
+  england english: en-GB
+  british english: en-GB
+  southern british english: en-GB
+  northern british english: en-GB
+  received pronunciation: en-GB
+
+  # ── en-AU ──────────────────────────────────────────────
+  australian english: en-AU
+
+  # ── en-IN(印度英语,不区分母语/L2)────────────────────
+  india and south asia (india, pakistan, sri lanka): en-IN
+  indian english: en-IN
+
+  # ── L1-Mandarin ────────────────────────────────────────
+  mandarin: L1-Mandarin
+  chinese: L1-Mandarin
+  chinese accent: L1-Mandarin
+
+  # ── L1-Spanish ─────────────────────────────────────────
+  spanish: L1-Spanish
+  spanish accent: L1-Spanish
+
+  # ── L1-Korean ──────────────────────────────────────────
+  korean: L1-Korean
+  korean accent: L1-Korean
+
+  # ── L1-Arabic ──────────────────────────────────────────
+  arabic: L1-Arabic
+  arabic accent: L1-Arabic
