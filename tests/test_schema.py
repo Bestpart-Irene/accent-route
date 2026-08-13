@@ -127,7 +127,16 @@ class TestConstants:
         ]
 
     def test_core_sources(self):
-        assert set(SOURCES) == {"common_voice", "l2_arctic", "edacc", "youtube"}
+        assert set(SOURCES) == {
+            "common_voice", "globe", "l2_arctic", "edacc", "youtube",
+        }
+
+    def test_every_source_has_a_label_source(self):
+        """A source with no label_source silently produces NaN and fails the split
+        schema much later, with a useless error."""
+        from accentroute.split import LABEL_SOURCE_BY_SOURCE
+
+        assert set(LABEL_SOURCE_BY_SOURCE) == set(SOURCES)
 
     def test_splits_include_ood(self):
         assert "ood_test" in SPLITS

@@ -16,7 +16,7 @@ ACCENTS = [
     "en-US", "en-GB", "en-AU", "en-IN",
     "L1-Mandarin", "L1-Spanish", "L1-Korean", "L1-Arabic",
 ]
-SOURCES = ["common_voice", "l2_arctic", "edacc", "youtube"]  # extend when vctk/saa land
+SOURCES = ["common_voice", "globe", "l2_arctic", "edacc", "youtube"]  # vctk/saa: backlog
 SPLITS = ["train", "val", "test", "ood_test", "unassigned"]
 
 

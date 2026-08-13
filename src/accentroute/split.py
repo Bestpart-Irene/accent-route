@@ -24,6 +24,7 @@ LABEL_SOURCE_BY_SOURCE = {
     "l2_arctic": "gold",
     "edacc": "gold",
     "common_voice": "self_report",
+    "globe": "self_report",  # Common-Voice-derived; the accent field is the same self-report
     "youtube": "weak",
 }
 
