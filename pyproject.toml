@@ -1,0 +1,52 @@
+[project]
+name = "accentroute"
+version = "0.1.0"
+description = "Multi-source data pipeline and weak-supervision ablation for 8-class English accent classification"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.2",
+    "pyarrow>=17.0",
+    "pandera>=0.24",
+    "pyyaml>=6.0",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+# 音频/管线重依赖，本地按需安装；CI 只装核心 + dev（CI 绝不下载模型）
+audio = [
+    "silero-vad>=5.1",
+    "faster-whisper>=1.0",
+    "soundfile>=0.12",
+    "librosa>=0.10",
+]
+ml = [
+    "torch>=2.4",
+    "transformers>=4.48",
+    "peft>=0.14",
+    "speechbrain>=1.0",
+    "scikit-learn>=1.5",
+    "numpy>=1.26",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.8",
+]
+
+[project.scripts]
+accentroute = "accentroute.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/accentroute"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
