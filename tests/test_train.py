@@ -142,6 +142,36 @@ def _train_cfg(tmp_path, total_steps=400, seed=17) -> TrainConfig:
     )
 
 
+class TestDevicePlacement:
+    def test_model_device_reports_parameter_device(self):
+        """DataLoader always yields CPU tensors, so the loop must move each batch to the
+        model's device — an mps/cuda model otherwise dies inside the first conv."""
+        from accentroute.train import model_device
+
+        model = _tiny_model()
+        assert model_device(model) == next(model.parameters()).device
+
+    def test_batches_are_moved_to_model_device(self, tmp_path, monkeypatch):
+        """Assert the move actually happens, without needing a GPU in CI: wrap the model so
+        it records the device of every batch it is handed."""
+        from accentroute.train import model_device
+
+        model = _tiny_model()
+        seen = []
+        original = model.forward
+
+        def recording_forward(input_features, n_valid):
+            seen.append((input_features.device, n_valid.device))
+            return original(input_features, n_valid)
+
+        monkeypatch.setattr(model, "forward", recording_forward)
+        ds = _SyntheticDs()
+        train(_train_cfg(tmp_path, total_steps=4), model=model, train_ds=ds, val_ds=ds)
+        assert seen
+        expected = model_device(model)
+        assert all(f == expected and n == expected for f, n in seen)
+
+
 class TestTrainLoop:
     def test_overfits_synthetic_batch(self, tmp_path):
         ds = _SyntheticDs()

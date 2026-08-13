@@ -140,7 +140,7 @@ eight-class number.
 ## Development
 
 ```bash
-uv run pytest -q       # 162 tests
+uv run pytest -q       # 176 tests
 uv run ruff check .
 ```
 

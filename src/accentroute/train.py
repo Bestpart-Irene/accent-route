@@ -117,6 +117,15 @@ def resolve_total_steps(
     raise ValueError(f"unknown budget rule: {budget}")
 
 
+def model_device(model):
+    """The device the model's parameters live on.
+
+    The training loop has to move each batch there itself: DataLoader always produces CPU
+    tensors, so a model on mps/cuda would otherwise fail inside the first conv.
+    """
+    return next(model.parameters()).device
+
+
 def _cosine_warmup(step: int, total: int, warmup: int) -> float:
     if step < warmup:
         return step / max(1, warmup)
@@ -164,6 +173,7 @@ def train(cfg: TrainConfig, *, model, train_ds, val_ds) -> TrainResult:
         train_ds, batch_size=cfg.batch_size, sampler=sampler, collate_fn=collate
     )
 
+    device = model_device(model)
     trainable = [p for p in model.parameters() if p.requires_grad]
     opt = torch.optim.AdamW(trainable, lr=cfg.lr)
     warmup = int(cfg.warmup_ratio * total_steps)
@@ -193,8 +203,8 @@ def train(cfg: TrainConfig, *, model, train_ds, val_ds) -> TrainResult:
         with torch.no_grad():
             eval_loader = DataLoader(val_ds, batch_size=cfg.batch_size, collate_fn=collate)
             for feats, n_valid, ys in eval_loader:
-                logits = model(feats, n_valid)
-                preds.extend(logits.argmax(-1).tolist())
+                logits = model(feats.to(device), n_valid.to(device))
+                preds.extend(logits.argmax(-1).cpu().tolist())
                 golds.extend(ys.tolist())
         model.train()
         class_labels = list(range(cfg.n_classes))
@@ -203,6 +213,7 @@ def train(cfg: TrainConfig, *, model, train_ds, val_ds) -> TrainResult:
     model.train()
     for step, (feats, n_valid, ys) in enumerate(loader, start=1):
         opt.zero_grad()
+        feats, n_valid, ys = feats.to(device), n_valid.to(device), ys.to(device)
         loss = loss_fn(model(feats, n_valid), ys)
         loss.backward()
         opt.step()
