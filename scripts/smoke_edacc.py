@@ -11,6 +11,7 @@ To keep the split honest even here, the split is speaker-disjoint and the report
 is macro-F1 over the classes EdAcc actually supports.
 
 Usage:
+    python scripts/smoke_edacc.py download    # fetch EdAcc from Hugging Face
     python scripts/smoke_edacc.py extract     # parquet → 16k mono wavs
     python scripts/smoke_edacc.py pipeline    # ingest → filter → split
     python scripts/smoke_edacc.py train       # LoRA training on MPS/CPU
@@ -18,6 +19,7 @@ Usage:
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -26,11 +28,32 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-RAW = Path("data/raw/edacc_hf")
-WAV = Path("data/work/edacc_wav")
-MAN = Path("data/manifests")
-RUN = Path("runs/smoke_edacc")
+# Paths are env-overridable: on a cluster every byte of data and every checkpoint has to
+# live on scratch, never in the repo or in $HOME.
+_BASE = Path(os.environ.get("ACCENTROUTE_DATA", "data"))
+RAW = Path(os.environ.get("ACCENTROUTE_RAW", _BASE / "raw/edacc_hf"))
+WAV = Path(os.environ.get("ACCENTROUTE_WAV", _BASE / "work/edacc_wav"))
+MAN = Path(os.environ.get("ACCENTROUTE_MANIFESTS", _BASE / "manifests"))
+RUN = Path(os.environ.get("ACCENTROUTE_RUN", "runs/smoke_edacc"))
 MIN_SPEAKERS_PER_CLASS = 4
+
+
+def _pick_device(torch):
+    """cuda on the cluster, mps on an Apple laptop, cpu as the fallback."""
+    if torch.cuda.is_available():
+        return "cuda"
+    if torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+
+def download() -> None:
+    """Fetch EdAcc from Hugging Face into RAW (open access, no gate)."""
+    from huggingface_hub import snapshot_download
+
+    p = snapshot_download("edinburghcstr/edacc", repo_type="dataset",
+                          local_dir=str(RAW), max_workers=8)
+    print(f"downloaded to {p}")
 
 
 def extract() -> None:
@@ -147,7 +170,7 @@ def train() -> None:
     val_ds, _ = _dataset(MAN / "smoke_split.parquet", "val", classes)
     print(f"train {len(train_ds)} clips, val {len(val_ds)} clips")
 
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
+    device = _pick_device(torch)
     model = build_model(n_classes=len(classes)).to(device)
 
     cfg = TrainConfig(
@@ -176,7 +199,7 @@ def report() -> None:
     train_df = pd.read_parquet(MAN / "smoke_split.parquet")
     train_df = train_df[train_df["split"] == "train"]
 
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
+    device = _pick_device(torch)
     model = build_model(n_classes=len(classes)).to(device)
     state = torch.load(RUN / "ckpt_best.pt", weights_only=True)
     model.load_state_dict(state, strict=False)
@@ -217,4 +240,5 @@ def report() -> None:
 
 if __name__ == "__main__":
     action = sys.argv[1] if len(sys.argv) > 1 else "pipeline"
-    {"extract": extract, "pipeline": pipeline, "train": train, "report": report}[action]()
+    {"download": download, "extract": extract, "pipeline": pipeline,
+     "train": train, "report": report}[action]()
