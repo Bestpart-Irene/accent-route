@@ -1,0 +1,9 @@
+# Common Voice English — 主路径 HF common_voice_17_0(CC0,gated 点击即过)
+# 注:2025-10 起官方分发独家走 Mozilla Data Collective;v17 是 HF 上最后的版本,
+# MDC v26 是可选升级(注册通过后换 root 即可)。
+source: common_voice
+license: CC0-1.0
+source_uri: hf://mozilla-foundation/common_voice_17_0
+root: data/raw/common_voice/en
+tsv: validated.tsv
+clips_dir: clips

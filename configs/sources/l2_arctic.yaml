@@ -1,0 +1,39 @@
+# L2-ARCTIC v5 — CC BY-NC 4.0,TAMU PSI 表单申请
+# 24 speakers × 6 L1(各 4 人,2M/2F)。Hindi/Vietnamese 不在 8 类内,
+# 由 taxonomy 丢弃并计数(ingest 不砍)。
+source: l2_arctic
+license: CC-BY-NC-4.0
+source_uri: https://psi.engr.tamu.edu/l2-arctic-corpus/
+root: data/raw/l2_arctic
+
+speaker_l1:
+  # Arabic
+  ABA: Arabic
+  SKA: Arabic
+  YBAA: Arabic
+  ZHAA: Arabic
+  # Mandarin
+  BWC: Mandarin
+  LXC: Mandarin
+  NCC: Mandarin
+  TXHC: Mandarin
+  # Hindi(taxonomy 丢弃)
+  ASI: Hindi
+  RRBI: Hindi
+  SVBI: Hindi
+  TNI: Hindi
+  # Korean
+  HJK: Korean
+  HKK: Korean
+  YDCK: Korean
+  YKWK: Korean
+  # Spanish
+  EBVS: Spanish
+  ERMS: Spanish
+  MBMPS: Spanish
+  NJS: Spanish
+  # Vietnamese(taxonomy 丢弃)
+  HQTV: Vietnamese
+  PNV: Vietnamese
+  THV: Vietnamese
+  TLV: Vietnamese
