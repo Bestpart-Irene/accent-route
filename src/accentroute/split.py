@@ -53,8 +53,18 @@ def assign_splits(
     df: pd.DataFrame,
     ratios: tuple[float, float, float] = (0.8, 0.1, 0.1),
     seed: int = 17,
+    fixed_split_by_source: dict[str, str] | None = None,
 ) -> pd.DataFrame:
-    """qc manifest (with speaker_key) → split manifest (validated at the split stage)."""
+    """qc manifest (with speaker_key) → split manifest (validated at the split stage).
+
+    fixed_split_by_source overrides which sources bypass the speaker-level allocation.
+    The default is the production rule (edacc → ood_test, youtube → train); a diagnostic
+    run that needs, say, EdAcc to be trainable has to pass an explicit override rather
+    than edit the rule itself.
+    """
+    fixed_by_source = (
+        _FIXED_SPLIT_BY_SOURCE if fixed_split_by_source is None else fixed_split_by_source
+    )
     out = df.copy()
     out["label_source"] = out["source"].map(LABEL_SOURCE_BY_SOURCE)
     for col in ("consensus_score", "evidence_level"):
@@ -63,12 +73,12 @@ def assign_splits(
     out["split"] = "unassigned"
 
     accepted = out["status"] == "accepted"
-    for source, fixed in _FIXED_SPLIT_BY_SOURCE.items():
+    for source, fixed in fixed_by_source.items():
         out.loc[accepted & (out["source"] == source), "split"] = fixed
 
     # Speaker-level table: exactly one row per speaker (label = mode), so no speaker can
     # ever be assigned to two splits
-    pool = out[accepted & ~out["source"].isin(_FIXED_SPLIT_BY_SOURCE)]
+    pool = out[accepted & ~out["source"].isin(fixed_by_source)]
     speakers = (
         pool.groupby("speaker_key")
         .agg(
@@ -92,7 +102,7 @@ def assign_splits(
             else:
                 spk_split[key] = "train"
 
-    mask = accepted & ~out["source"].isin(_FIXED_SPLIT_BY_SOURCE)
+    mask = accepted & ~out["source"].isin(fixed_by_source)
     out.loc[mask, "split"] = out.loc[mask, "speaker_key"].map(spk_split)
 
     validate_manifest(out, stage="split")

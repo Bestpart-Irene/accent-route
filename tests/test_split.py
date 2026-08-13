@@ -110,6 +110,20 @@ class TestStratification:
         share = (cv["split"] == "train").mean()
         assert 0.65 <= share <= 0.9
 
+    def test_fixed_split_override_makes_edacc_trainable(self):
+        """The production rule pins edacc to ood_test. A diagnostic run (e.g. a pipeline
+        smoke test on EdAcc alone) must opt out explicitly, never by editing the rule."""
+        out = assign_splits(make_manifest(), seed=17, fixed_split_by_source={"youtube": "train"})
+        edacc = out[(out["source"] == "edacc") & (out["status"] == "accepted")]
+        assert set(edacc["split"]) <= {"train", "val", "test"}
+        assert "ood_test" not in set(edacc["split"])
+        # speaker-disjointness still holds under the override
+        assigned = out[out["split"].isin(["train", "val", "test"])]
+        assert (assigned.groupby("speaker_key")["split"].nunique() == 1).all()
+
+    def test_default_still_pins_edacc_to_ood(self, split_df):
+        assert set(split_df[split_df["source"] == "edacc"]["split"]) == {"ood_test"}
+
     def test_deterministic_under_seed(self):
         a = assign_splits(make_manifest(), seed=17)
         b = assign_splits(make_manifest(), seed=17)
