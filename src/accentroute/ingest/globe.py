@@ -123,9 +123,13 @@ def fetch_globe_subset(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     if row_iter is None:
-        from datasets import load_dataset
+        from datasets import Audio, load_dataset
 
+        # decode=False keeps the Audio feature as {"bytes", "path"}, which is what
+        # hf_audio.decode_audio reads. Leaving decoding on pulls in a torchcodec
+        # dependency and decodes every row, including the ~95% the quotas discard.
         ds = load_dataset("MushanW/GLOBE_V2", split=split, streaming=True)
+        ds = ds.cast_column("audio", Audio(decode=False))
         row_iter = iter(ds)
 
     per_class_count: Counter = Counter()
