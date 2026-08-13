@@ -5,8 +5,11 @@ recognition. The centre of gravity is the **data pipeline** — multi-source int
 LLM weak labeling, quality control, and evaluation design. The model side is deliberately
 standard (frozen whisper-small encoder + LoRA) and serves only to validate the data work.
 
-**Status:** pipeline and evaluation machinery are complete and unit-tested. Data
-acquisition and the experiments themselves have not started — see [Gates](#gates).
+**Status:** pipeline and evaluation machinery are complete and unit-tested, and the whole
+chain has been run end to end on real EdAcc audio on a B200 — see
+[the smoke test](docs/smoke-test-edacc.md), which also explains why its macro-F1 is not
+evidence of accent recognition. The designed experiment still needs the Common Voice and
+L2-ARCTIC data; see [Gates](#gates).
 
 ## Taxonomy (8 classes, locked)
 
