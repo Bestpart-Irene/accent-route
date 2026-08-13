@@ -39,6 +39,45 @@ class TestSourceAccentMatrix:
         assert len(m) == 4  # (cv,en-US) (l2,en-US) (l2,Korean) (cv,Korean)
 
 
+class TestDurationConfound:
+    """Clip duration can itself leak the source: GLOBE's TTS utterances run ~4 s while
+    L2-ARCTIC's run longer, so a model could read duration instead of accent."""
+
+    def _df(self):
+        rows = []
+        for i in range(20):
+            rows.append({"source": "globe", "accent_label": "en-AU",
+                         "speaker_id_raw": f"g{i}", "duration_s": 5.2})
+            rows.append({"source": "l2_arctic", "accent_label": "L1-Korean",
+                         "speaker_id_raw": f"k{i}", "duration_s": 12.0})
+        return pd.DataFrame(rows)
+
+    def test_matrix_carries_duration_stats(self):
+        m = source_accent_matrix(self._df())
+        assert {"median_duration_s", "p10_duration_s", "p90_duration_s"} <= set(m.columns)
+        au = m[m.accent_label == "en-AU"].iloc[0]
+        assert au["median_duration_s"] == pytest.approx(5.2)
+
+    def test_duration_separation_is_flagged(self):
+        from accentroute.reports.coverage_confounding import flag_duration_confound
+
+        flags = flag_duration_confound(source_accent_matrix(self._df()))
+        # the two classes' duration ranges do not overlap at all
+        assert bool(flags["duration_disjoint"].any())
+
+    def test_overlapping_durations_not_flagged(self):
+        from accentroute.reports.coverage_confounding import flag_duration_confound
+
+        rows = []
+        for i in range(20):
+            rows.append({"source": "globe", "accent_label": "en-AU",
+                         "speaker_id_raw": f"g{i}", "duration_s": 6.0 + (i % 5)})
+            rows.append({"source": "l2_arctic", "accent_label": "L1-Korean",
+                         "speaker_id_raw": f"k{i}", "duration_s": 7.0 + (i % 5)})
+        flags = flag_duration_confound(source_accent_matrix(pd.DataFrame(rows)))
+        assert not bool(flags["duration_disjoint"].any())
+
+
 class TestFlagConfounded:
     def test_dominant_single_source_flagged(self):
         report = flag_confounded(source_accent_matrix(_mini_manifest()), dominance=0.9)

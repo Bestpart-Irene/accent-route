@@ -111,6 +111,7 @@ def pipeline() -> None:
 def report() -> None:
     from accentroute.reports.coverage_confounding import (
         flag_confounded,
+        flag_duration_confound,
         source_accent_matrix,
     )
 
@@ -127,8 +128,10 @@ def report() -> None:
     matrix = source_accent_matrix(assigned)
     print("\nsource x accent matrix:")
     print(matrix.to_string(index=False))
-    print("\nconfounding flags:")
+    print("\nsource confounding flags:")
     print(flag_confounded(matrix).to_string(index=False))
+    print("\nduration confounding flags:")
+    print(flag_duration_confound(matrix).to_string(index=False))
 
 
 if __name__ == "__main__":

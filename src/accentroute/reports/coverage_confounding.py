@@ -24,10 +24,44 @@ def source_accent_matrix(df: pd.DataFrame) -> pd.DataFrame:
             n_speakers=("speaker_id_raw", "nunique"),
             n_clips=("speaker_id_raw", "size"),
             hours=("duration_s", "sum"),
+            median_duration_s=("duration_s", "median"),
+            p10_duration_s=("duration_s", lambda s: s.quantile(0.10)),
+            p90_duration_s=("duration_s", lambda s: s.quantile(0.90)),
         )
     )
     out["hours"] = out["hours"] / 3600.0
     return out
+
+
+def flag_duration_confound(matrix: pd.DataFrame) -> pd.DataFrame:
+    """Flag classes whose clip-duration range does not overlap every other class's.
+
+    Duration is a source fingerprint in disguise. GLOBE's TTS utterances run around 4-6 s
+    while L2-ARCTIC's run longer, so if each class comes from one source a model can read
+    the clip length instead of the accent — and a speaker-disjoint split does nothing about
+    it. Disjoint [p10, p90] ranges mean the shortcut is available.
+    """
+    per_class = (
+        matrix.groupby("accent_label")
+        .agg(p10=("p10_duration_s", "min"), p90=("p90_duration_s", "max"))
+        .reset_index()
+    )
+    rows = []
+    for _, row in per_class.iterrows():
+        others = per_class[per_class["accent_label"] != row["accent_label"]]
+        overlaps = (
+            (others["p10"] <= row["p90"]) & (others["p90"] >= row["p10"])
+        )
+        rows.append(
+            {
+                "accent_label": row["accent_label"],
+                "p10_duration_s": row["p10"],
+                "p90_duration_s": row["p90"],
+                "n_overlapping_classes": int(overlaps.sum()),
+                "duration_disjoint": bool(len(others) > 0 and not overlaps.any()),
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def flag_confounded(matrix: pd.DataFrame, dominance: float = 0.9) -> pd.DataFrame:
