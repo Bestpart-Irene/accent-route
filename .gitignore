@@ -1,4 +1,5 @@
-# 数据与产物：repo 不再分发音频（L2-ARCTIC / YouTube 许可约束）
+# Data and artifacts. Audio is never redistributed from this repo
+# (L2-ARCTIC and YouTube licensing).
 data/
 runs/
 *.wav
@@ -6,7 +7,8 @@ runs/
 *.ckpt
 *.pt
 
-# 凭证:MDC API key、HF token 等一律不入库(仓库是公开的)
+# Credentials. This repo is public, so MDC API keys, HF tokens and the like
+# must never be committed.
 .env
 .env.*
 *.key
