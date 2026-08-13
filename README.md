@@ -1,185 +1,122 @@
 # AccentRoute
 
-A multi-source data pipeline and weak-supervision ablation for 8-class English accent
-recognition. The centre of gravity is the **data pipeline** — multi-source integration,
-LLM weak labeling, quality control, and evaluation design. The model side is deliberately
-standard (frozen whisper-small encoder + LoRA) and serves only to validate the data work.
+An English accent classifier and the data pipeline behind it, built to be evaluated
+honestly rather than to produce a flattering number.
 
-**Status:** pipeline and evaluation machinery are complete and unit-tested, and the whole
-chain has been run end to end on real EdAcc audio on a B200 — see
-[the smoke test](docs/smoke-test-edacc.md), which also explains why its macro-F1 is not
-evidence of accent recognition. The designed experiment still needs the Common Voice and
-L2-ARCTIC data; see [Gates](#gates).
+Frozen `whisper-small` encoder + LoRA + masked mean-pooling + a linear head, trained on
+speaker-disjoint splits and tested both in-domain and on a different corpus with a
+different speaking style.
 
-## Taxonomy (8 classes, locked)
+## Results
 
-Native varieties `en-US` `en-GB` `en-AU` `en-IN`; L2 accents by the speaker's first
-language `L1-Mandarin` `L1-Spanish` `L1-Korean` `L1-Arabic`. Anything that does not map
-into these eight is dropped and counted (`configs/taxonomy_v1.yaml`, a versioned
-whitelist).
+<!-- RESULTS -->
+_Training run in progress; this section is filled from `runs/accent_v1/results.json`._
 
-## Headline number: a budget-matched three-arm ablation
+## Why the evaluation is set up this way
 
-| Arm | Data | Training budget |
-| --- | --- | --- |
-| A `a_gold` | gold + self-reported | epoch-matched |
-| B `b_gold_oversampled` | gold + self-reported | **identical optimizer-step count to C** |
-| C `c_gold_weak` | gold + self-reported + accepted weak labels | epoch-matched (defines S_C) |
+Accent classification is unusually easy to get wrong, and the failure is invisible if you
+only look at the score.
 
-The headline is **C − B**, which isolates the value of the weak-labeled data itself.
-A − B is reported separately to isolate the training-budget effect.
+**Speaker leakage.** Split clips at random and the same voice lands in train and test. The
+model can then score highly by recognizing people, not accents — and it collapses on a new
+speaker. Every split here is speaker-disjoint: a speaker appears in exactly one of
+train/val/test, asserted in the pipeline and in the tests.
 
-Arm B exists because the naive comparison is unfair: a gold+weak run has more samples,
-more optimizer steps, and a different audio domain all at once, so a gain cannot be
-attributed to label quality. All three arms share the sampler, augmentation, LR schedule
-and checkpoint rule in `configs/train_common.yaml`; if an arm config tries to override any
-shared field, the config loader raises rather than silently running an unfair comparison.
+That is not a hypothetical. The first run of this pipeline, on EdAcc with a single test
+speaker per class, scored macro-F1 0.461 — which on inspection was three of five test
+speakers memorized and two never recognized at all. That run is written up in
+[docs/smoke-test-edacc.md](docs/smoke-test-edacc.md), including why its number is not
+evidence of anything.
 
-## Statistics and wording discipline
+**Source confounding.** When each class comes from one corpus, a model can read the
+microphone, the room, or the clip length instead of the accent — and a speaker-disjoint
+split does nothing about it. `accentroute report` emits a source × accent matrix and flags
+classes dominated by a single source, plus classes whose clip-duration range does not
+overlap any other class's (duration is a source fingerprint in disguise).
 
-Three seeds per arm (17/42/1337). Two quantities are reported **separately and never
-merged**:
+**Out-of-domain testing.** Training data is read speech; EdAcc is spontaneous
+conversation from a different corpus. The gap between in-domain and EdAcc is what says
+whether the model learned accent or learned read-speech accent. EdAcc covers only part of
+the label set, so its figure is a supported-class macro-F1 reported next to an in-domain
+control on that same subset — never against a full-label-set number.
 
-1. A class-stratified **test-speaker bootstrap 95% CI** — speakers are resampled with
-   replacement within each class, so a rare class can never vanish from a resample.
-2. **Seed variability** — the per-seed paired deltas and their standard deviation.
+**Wording.** Reported intervals cover test-set sampling, not training randomness, so
+nothing here is called statistically significant. `eval.tables.check_wording` enforces
+that against the report text and against these docs in CI.
 
-The interval covers test-set sampling but *not* training randomness, so the only claim
-this project makes is `test-speaker bootstrap CI excludes zero`. It never upgrades that
-into a significance claim, because the interval does not carry the evidence for one.
+## Taxonomy
 
-That discipline is enforced in code, not by convention: `AblationStats` has no
-`significant` field, and `eval.tables.check_wording` rejects any report text containing a
-phrase from its `BANNED_PHRASES` list. The gate applies to this README too — it caught an
-earlier draft of this very paragraph, which quoted a banned phrase in order to explain the
-rule. The gate was left strict and the prose reworded, rather than adding an exemption
-that would also excuse the real thing.
+Native varieties `en-US` `en-GB` `en-AU` `en-IN`, plus L2 accents by the speaker's first
+language `L1-Mandarin` `L1-Spanish` `L1-Korean` `L1-Arabic`. Anything outside the eight is
+dropped and counted (`configs/taxonomy_v1.yaml`, a versioned whitelist).
 
-## Known validity limits (stated, not hidden)
+The four L2 classes need L2-ARCTIC, whose access form is still pending, so the current
+model covers the four native varieties. The pipeline and the training script are
+label-set agnostic — adding the L2 data is a re-run, not a rewrite.
 
-- **Source-label confounding.** When a class correlates with a data source, a model can
-  learn the microphone and the recording environment instead of the accent — and
-  speaker-disjoint splitting does nothing to prevent that. Four defenses: the
-  source × accent matrix and `confounded` flags from `accentroute report`; test sets drawn
-  from ≥2 sources per class where possible; per-source per-class F1 in the results tables;
-  and a leave-one-source-out diagnostic for the L2 classes. Classes dominated by a single
-  source are flagged in the datasheet and their conclusions are qualified.
-- **L2 speaker scarcity.** L2-ARCTIC provides only four gold speakers per L1, so after
-  speaker-disjoint splitting the L2 test strata are thin and their intervals are wide.
-  Reported as such.
-- **Weak-label circularity.** Qwen2-Audio is both the weak-label source and a zero-shot
-  baseline. Mitigations: a pinned model revision and prompt SHA-256; a blind human audit
-  covering the accepted pool *and* the reject pool (so filter selection bias is visible);
-  and a kill rule that drops any class whose audited precision falls below 0.80. The
-  headline C − B comparison is unaffected because both arms are scored on the same
-  gold test set.
-- **Dedup scope.** In scope: speaker merging within the YouTube set and near-duplicate
-  detection within Common Voice. Global cross-source speaker clustering is backlog; the
-  residual risk is recorded in the datasheet.
-
-## Pipeline
-
-```
-ingest → taxonomy → filter → dedup/split → weak-label → augment → emit
-```
-
-Every stage is a pure function of the form "read a Parquet manifest → transform →
-validate against the stage schema → write a new Parquet". Three invariants are
-machine-enforced by `src/accentroute/schema.py`:
-
-- rejected rows always carry a `reject_reason`
-- **`label_source == "weak"` never appears in val/test/ood_test**
-- accepted YouTube rows must carry an E1/E2 evidence level
-
-```bash
-uv sync --group dev                             # core dependencies
-uv sync --group dev --extra audio --extra ml    # add the audio and training stacks
-
-uv run accentroute ingest common-voice
-uv run accentroute filter data/manifests/raw_common_voice.parquet data/manifests/qc.parquet
-uv run accentroute split data/manifests/qc.parquet data/manifests/split.parquet
-uv run accentroute report data/manifests/split.parquet     # G1 confounding matrix
-uv run accentroute emit data/manifests/split.parquet c_gold_weak data/datasets/c_gold_weak
-```
-
-GPU stages (Qwen2-Audio weak labeling, training) run on a single-GPU Slurm partition:
-
-```bash
-sbatch scripts/weaklabel_qwen.sbatch <manifest.parquet> <out.parquet>
-sbatch scripts/train.sbatch c_gold_weak 17
-sbatch scripts/train.sbatch b_gold_oversampled 17 <S_C>   # B must match C's step count
-bash scripts/watch_jobs.sh <jobid>...
-```
-
-`scripts/run_experiments.py` encodes that ordering as Slurm dependencies so the
-budget-matching cannot be got wrong by hand.
-
-## Data sources and licensing
+## Data
 
 | Source | Role | License | Access |
 | --- | --- | --- | --- |
-| GLOBE (`MushanW/GLOBE_V2`) | the four native varieties, self-reported accents | CC0 | open on Hugging Face |
-| L2-ARCTIC | gold labels for the four L2 classes | CC BY-NC 4.0 | request form; **audio is not redistributed here** |
-| EdAcc | **out-of-domain test only** | CC-BY-SA | open on Hugging Face (`edinburghcstr/edacc`) |
-| YouTube interviews | weak-label expansion, train split only | — | **only URLs, timestamps and labels are published here**; audio is fetched locally |
-| Common Voice (English) | optional extra self-reported data | CC0 | Mozilla Data Collective account + API key (**no longer on Hugging Face** as of Oct 2025) |
+| GLOBE (`MushanW/GLOBE_V2`) | training, four native varieties | CC0 | open on Hugging Face |
+| EdAcc | out-of-domain test only | CC-BY-SA | open on Hugging Face |
+| L2-ARCTIC | the four L2 classes | CC BY-NC 4.0 | request form, pending |
 
-GLOBE is Common-Voice-derived and carries the same self-reported accent strings, so it
-covers the native varieties without the Mozilla Data Collective dependency — and it is
-the only reachable corpus containing **en-AU** at all. Measured on a 14% sample: en-US
-2,196 speakers, en-GB 485, en-AU 137, en-IN 86. It contains **none** of the L1-* classes,
-because its accent field records English variety rather than the speaker's first
-language, which is why L2-ARCTIC stays on the critical path.
+GLOBE is Common-Voice-derived and is the only reachable corpus that contains **en-AU** at
+all — EdAcc has zero Australian speakers. It is streamed under a per-class quota and a
+per-speaker cap: a class quota filled by a handful of voices would train a speaker
+recognizer, which is the failure mode above.
 
-Two biases GLOBE brings, both recorded in the datasheet: it is a TTS corpus curated for
-clean audio, so it is not representative of in-the-wild recordings; and V2 supersamples to
-44.1 kHz, so the extra bandwidth above Common Voice's original rate carries no
-information.
+Two biases it carries, both recorded here rather than buried: it is a TTS corpus curated
+for clean audio, so it does not represent in-the-wild recordings; and V2 supersamples to
+44.1 kHz, so bandwidth above Common Voice's original rate carries no information.
 
-VCTK and the Speech Accent Archive are backlog. `data/` and credentials (`.env`) are
-gitignored.
+Audio is never redistributed from this repo. `data/` and credentials are gitignored.
 
-## External comparison axis
+## Running it
 
-The 8-class taxonomy here is custom, so its macro-F1 has no reference point a reader can
-calibrate against. Results are therefore also re-reported in the label set of
-[Vox-Profile](https://arxiv.org/abs/2505.14648), a benchmark aggregating 11 corpora with
-speaker-disjoint splits and published models.
+```bash
+uv sync --group dev --extra audio --extra ml
 
-The two label sets do not nest — ours is partly first-language based, Vox-Profile's is
-regional — so collapsing ours into theirs hides real errors: an `L1-Mandarin` /
-`L1-Korean` confusion disappears into `East Asia`. `eval.external.vox_profile_report`
-therefore always reports which groups it collapsed and how many errors that concealed, so
-the external number can never be quoted as if it were the primary result.
+python scripts/globe_pipeline.py fetch 10000 15   # stream a balanced subset
+python scripts/globe_pipeline.py pipeline         # filter, dedup, speaker-disjoint split
+python scripts/globe_pipeline.py report           # leakage audit + confounding matrices
+python scripts/train_eval.py train 1500           # three seeds
+python scripts/train_eval.py evaluate             # in-domain + out-of-domain
+```
 
-### EdAcc out-of-domain coverage
+On Slurm, `scripts/globe_prepare.sbatch` (cpu partition, no GPU) and
+`scripts/train_eval.sbatch` (one GPU) do the same.
 
-Measured from the corpus metadata (122 speakers, 19,137 segments): EdAcc supports only
-part of the taxonomy. `en-AU` has **no** speakers at all, and `L1-Korean` (1) and
-`L1-Arabic` (2) fall below the five-speaker floor. Out-of-domain results are therefore
-reported as **supported-class macro-F1** over the covered subset, paired with an
-in-domain control computed on that same subset, and are never compared against a full
-eight-class number.
+The pipeline is seven stages — ingest → taxonomy → filter → dedup/split → weak-label →
+augment → emit — each a pure function from one Parquet manifest to the next, validated
+against a stage schema. Three invariants are machine-enforced in `schema.py`: rejected
+rows carry a reason, weak labels never reach val/test, and accepted YouTube rows carry an
+evidence level.
 
-## Gates
+## Designed and tested, not yet run
 
-- **G1** — gold manifest with ≥200 clips per class; ≥20 speakers for native classes and
-  ≥8 for L2 classes; leakage audit clean; confounding matrix reviewed; EdAcc
-  supported-class set fixed.
-- **G2** — arm A reproducible across three seeds and beating the majority-class baseline;
-  weak-label pipeline running end to end with a measured acceptance rate.
-- **G3** — three-arm ablation and out-of-domain numbers final. Only then does any
-  release work start.
+Built and unit-tested but waiting on data or time. Listed here so the code is not mistaken
+for a claim:
+
+- **Budget-matched three-arm ablation** (`configs/arms/`) — measures what weakly labeled
+  data is worth, using a control arm matched on optimizer steps so the gain cannot be
+  attributed to a bigger training budget.
+- **Weak labeling with Qwen2-Audio** (`weaklabel/`) — evidence levels, a consensus rule, a
+  three-pool blind audit, a pinned model revision and prompt hash.
+- **Speaker-stratified bootstrap** (`eval/bootstrap.py`) and the **Vox-Profile external
+  axis** (`eval/external.py`).
+- **Leakage demo** (`scripts/leakage_demo.py`) — trains the same model on the same clips
+  under a speaker-disjoint and a deliberately leaky split to measure the inflation.
 
 ## Development
 
 ```bash
-uv run pytest -q       # 198 tests
+uv run pytest -q       # 219 tests
 uv run ruff check .
 ```
 
-CI installs core dependencies only and **never downloads a model**: every model call is
-injected as a parameter, unit tests run against synthetic fixtures, and tests requiring
-torch skip automatically.
+CI installs core dependencies only and never downloads a model: every model call is
+injected, tests run on synthetic fixtures, and torch-dependent tests skip automatically.
 
-The design spec and implementation plan live in `docs/superpowers/`.
+Design notes are in `docs/`.
