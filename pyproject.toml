@@ -10,6 +10,7 @@ dependencies = [
     "pyyaml>=6.0",
     "typer>=0.12",
     "numpy>=1.26",
+    "scikit-learn>=1.5",
     # 音频 I/O 与重采样:纯 wheel,CI 可用(mp3/wav/flac 覆盖 CV/L2-ARCTIC/EdAcc)
     "soundfile>=0.12",
     "soxr>=0.5",
@@ -26,8 +27,6 @@ ml = [
     "transformers>=4.48",
     "peft>=0.14",
     "speechbrain>=1.0",
-    "scikit-learn>=1.5",
-    "numpy>=1.26",
 ]
 
 [dependency-groups]

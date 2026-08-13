@@ -1,0 +1,9 @@
+# T7 去重阈值。sim_threshold 为校准前缺省(保守防误合并);
+# 真实数据到位后跑 scripts/calibrate_dedup.py(正例=L2-ARCTIC/CV 已知同人对,
+# 负例=CV×YouTube 跨源 hard negatives),用 suggest_threshold 的输出固化到这里。
+sim_threshold: 0.45
+calibrated: false        # 校准后翻 true 并记录日期
+max_false_merge: 1.0e-3
+near_duplicate:
+  max_dur_delta_s: 0.5
+  min_jaccard: 0.8

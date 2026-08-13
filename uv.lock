@@ -43,6 +43,7 @@ dependencies = [
     { name = "pandera" },
     { name = "pyarrow" },
     { name = "pyyaml" },
+    { name = "scikit-learn" },
     { name = "soundfile" },
     { name = "soxr" },
     { name = "typer" },
@@ -54,10 +55,7 @@ audio = [
     { name = "silero-vad" },
 ]
 ml = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "peft" },
-    { name = "scikit-learn" },
     { name = "speechbrain" },
     { name = "torch" },
     { name = "transformers" },
@@ -73,13 +71,12 @@ dev = [
 requires-dist = [
     { name = "faster-whisper", marker = "extra == 'audio'", specifier = ">=1.0" },
     { name = "numpy", specifier = ">=1.26" },
-    { name = "numpy", marker = "extra == 'ml'", specifier = ">=1.26" },
     { name = "pandas", specifier = ">=2.2" },
     { name = "pandera", specifier = ">=0.24" },
     { name = "peft", marker = "extra == 'ml'", specifier = ">=0.14" },
     { name = "pyarrow", specifier = ">=17.0" },
     { name = "pyyaml", specifier = ">=6.0" },
-    { name = "scikit-learn", marker = "extra == 'ml'", specifier = ">=1.5" },
+    { name = "scikit-learn", specifier = ">=1.5" },
     { name = "silero-vad", marker = "extra == 'audio'", specifier = ">=5.1" },
     { name = "soundfile", specifier = ">=0.12" },
     { name = "soxr", specifier = ">=0.5" },
