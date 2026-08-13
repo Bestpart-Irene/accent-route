@@ -12,6 +12,12 @@
 #   approximation.
 # - "canadian english", "new zealand english", "scottish english" and the like fall outside
 #   the 8 classes and are deliberately left unmapped.
+# - "chinese" maps to L1-Mandarin even though it does not distinguish Mandarin from
+#   Cantonese or other varieties — an approximation forced by the source labels.
+#
+# Entries marked "EdAcc's standardized label" were added after measuring the real corpus
+# metadata: EdAcc writes en-US as "Mainstream US English", and omitting it silently zeroed
+# out the whole class in the coverage report.
 
 version: v1
 
@@ -20,6 +26,7 @@ mapping:
   united states english: en-US
   american english: en-US
   us english: en-US
+  mainstream us english: en-US        # EdAcc's standardized label
 
   # ── en-GB ──────────────────────────────────────────────
   england english: en-GB
@@ -43,6 +50,7 @@ mapping:
   # ── L1-Spanish ─────────────────────────────────────────
   spanish: L1-Spanish
   spanish accent: L1-Spanish
+  spanish (mexican): L1-Spanish       # EdAcc regional variant of the same L1
 
   # ── L1-Korean ──────────────────────────────────────────
   korean: L1-Korean

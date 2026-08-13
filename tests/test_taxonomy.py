@@ -31,8 +31,26 @@ class TestMapping:
         assert tax.map("Arabic") == "L1-Arabic"
         assert tax.map("Spanish") == "L1-Spanish"
 
+    def test_edacc_standardized_labels(self, tax):
+        """EdAcc's linguist-standardized labels, measured from the real corpus metadata.
+
+        "Mainstream US English" is EdAcc's label for en-US; missing it silently zeroed
+        out the entire class in the out-of-domain coverage report.
+        """
+        assert tax.map("Mainstream US English") == "en-US"
+        assert tax.map("Southern British English") == "en-GB"
+        assert tax.map("Indian English") == "en-IN"
+        assert tax.map("Spanish (Mexican)") == "L1-Spanish"
+
     def test_unmapped_returns_none(self, tax):
         assert tax.map("scottish english") is None
+
+    def test_edacc_out_of_taxonomy_varieties_dropped(self, tax):
+        """EdAcc carries many English varieties outside the locked 8 classes; they must be
+        dropped and counted, never quietly folded into a neighbouring class."""
+        for raw in ["Irish English", "Nigerian English", "Jamaican English",
+                    "Kenyan English", "South African English", "Vietnamese"]:
+            assert tax.map(raw) is None, f"{raw} must not map into the 8-class taxonomy"
 
     def test_unmapped_is_counted(self, tax):
         tax.map("scottish english")
