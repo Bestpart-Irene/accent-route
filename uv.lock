@@ -55,6 +55,9 @@ audio = [
     { name = "faster-whisper" },
     { name = "silero-vad" },
 ]
+compare = [
+    { name = "loralib" },
+]
 ml = [
     { name = "peft" },
     { name = "speechbrain" },
@@ -72,6 +75,7 @@ dev = [
 requires-dist = [
     { name = "datasets", marker = "extra == 'audio'", specifier = ">=3.0" },
     { name = "faster-whisper", marker = "extra == 'audio'", specifier = ">=1.0" },
+    { name = "loralib", marker = "extra == 'compare'", specifier = ">=0.1" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "pandas", specifier = ">=2.2" },
     { name = "pandera", specifier = ">=0.24" },
@@ -87,7 +91,7 @@ requires-dist = [
     { name = "transformers", marker = "extra == 'ml'", specifier = ">=4.48" },
     { name = "typer", specifier = ">=0.12" },
 ]
-provides-extras = ["audio", "ml"]
+provides-extras = ["audio", "ml", "compare"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1009,6 +1013,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/41/f2/d34e8b3a08a9cc79a50b2208a93dce981fe615b64d5a4d4abee421d898df/joblib-1.5.3.tar.gz", hash = "sha256:8561a3269e6801106863fd0d6d84bb737be9e7631e33aaed3fb9ce5953688da3", size = 331603, upload-time = "2025-12-15T08:41:46.427Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7b/91/984aca2ec129e2757d1e4e3c81c3fcda9d0f85b74670a094cc443d9ee949/joblib-1.5.3-py3-none-any.whl", hash = "sha256:5fc3c5039fc5ca8c0276333a188bbd59d6b7ab37fe6632daa76bc7f9ec18e713", size = 309071, upload-time = "2025-12-15T08:41:44.973Z" },
+]
+
+[[package]]
+name = "loralib"
+version = "0.1.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3d/da/117193e94c47dc5288b17443d53d8c4b373c59e37d2ffda7e275e0cea717/loralib-0.1.2.tar.gz", hash = "sha256:22ccff494a6254b973ddaee9f9aad4657941cab4221c75c5a04e0cac4fbd4567", size = 14552, upload-time = "2023-08-27T16:48:19.333Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f1/e7/a4362bf791bca17d2d91e7c69483185ab03d5aa05dd10391eff2e179a685/loralib-0.1.2-py3-none-any.whl", hash = "sha256:e341c9a507b180f3b8e70914efef9f6b19d1aa3996dec546b180cfbd027059e9", size = 10390, upload-time = "2023-08-27T16:48:17.723Z" },
 ]
 
 [[package]]

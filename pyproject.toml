@@ -31,6 +31,12 @@ ml = [
     "peft>=0.14",
     "speechbrain>=1.0",
 ]
+# Only needed to run the published Vox-Profile model for scripts/compare_published.py.
+# Their wrapper imports microsoft/LoRA rather than peft; declared here so the comparison
+# reproduces from a clean environment instead of a hand-installed one.
+compare = [
+    "loralib>=0.1",
+]
 
 [dependency-groups]
 dev = [
